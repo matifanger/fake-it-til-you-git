@@ -18,7 +18,7 @@ program
   .option('--distribution <type>', 'Distribution type', 'random')
   .option('--message-style <style>', 'Message style', 'default')
   .option('--dry-run', 'Preview commits without creating them', false)
-  .option('--config <path>', 'Path to config file', './fake-git.config.json')
+  .option('--config <path>', 'Path to config file', './test-configs/fake-git.config.json')
   .option('--push', 'Push commits to remote repository', false)
   .option('--seed <number>', 'Random seed for reproducibility')
   .option('-v, --verbose', 'Verbose output', false);
