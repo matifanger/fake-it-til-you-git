@@ -1,0 +1,20 @@
+{
+  "author": {
+    "name": "Your Name",
+    "email": "your.email@example.com"
+  },
+  "dateRange": {
+    "startDate": "2023-01-01",
+    "endDate": "2023-12-31"
+  },
+  "commits": {
+    "maxPerDay": 10,
+    "distribution": "random",
+    "messageStyle": "default"
+  },
+  "options": {
+    "dryRun": false,
+    "push": false,
+    "verbose": false
+  }
+} 
