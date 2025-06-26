@@ -41,6 +41,8 @@ export interface RepoStatus {
   modified: string[];
   untracked: string[];
   deleted: string[];
+  ahead: number;
+  behind: number;
 }
 
 /**
@@ -68,6 +70,15 @@ export interface IntegrityCheckResult {
     current: string;
     exists: boolean;
   };
+}
+
+/**
+ * Interface for push result
+ */
+export interface PushResult {
+  success: boolean;
+  error?: string;
+  details?: string;
 }
 
 /**
@@ -238,6 +249,8 @@ export class GitOperations {
         modified: status.modified,
         untracked: status.not_added,
         deleted: status.deleted,
+        ahead: status.ahead || 0,
+        behind: status.behind || 0,
       };
     } catch (error) {
       throw new Error(
@@ -666,6 +679,84 @@ export class GitOperations {
     }
 
     return backups;
+  }
+
+  /**
+   * Push commits to remote repository
+   * @returns Promise<PushResult> - Push operation result
+   */
+  async push(): Promise<PushResult> {
+    try {
+      const remotes = await this.getRemotes();
+      
+      if (remotes.length === 0) {
+        return {
+          success: false,
+          error: 'No remote repository configured',
+        };
+      }
+
+      const currentBranch = await this.getCurrentBranch();
+      const remoteName = remotes[0].name; // Use first remote (usually 'origin')
+      
+      // Attempt to push
+      const result = await this.git.push(remoteName, currentBranch);
+      
+      return {
+        success: true,
+        details: `Pushed to ${remoteName}/${currentBranch}`,
+      };
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+      
+      return {
+        success: false,
+        error: errorMessage,
+      };
+    }
+  }
+
+  /**
+   * Clean up old backup files (older than 24 hours)
+   * @returns Promise<void>
+   */
+  async cleanupOldBackups(): Promise<void> {
+    try {
+      const backupDir = join(this.repoPath, '.git', 'fake-it-til-you-git-backups');
+
+      if (!existsSync(backupDir)) {
+        return; // No backups to clean up
+      }
+
+      const fs = await import('fs/promises');
+      const files = await fs.readdir(backupDir);
+      const twentyFourHours = 24 * 60 * 60 * 1000;
+      let cleanedCount = 0;
+
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          const filePath = join(backupDir, file);
+          try {
+            const backupData = JSON.parse(readFileSync(filePath, 'utf8')) as BackupInfo;
+            const backupAge = Date.now() - new Date(backupData.timestamp).getTime();
+
+            if (backupAge > twentyFourHours) {
+              unlinkSync(filePath);
+              cleanedCount++;
+            }
+          } catch (error) {
+            // If we can't parse the file, delete it as it's likely corrupted
+            unlinkSync(filePath);
+            cleanedCount++;
+          }
+        }
+      }
+    } catch (error) {
+      // Cleanup errors are not critical, just log them
+      console.warn(
+        `Warning: Failed to cleanup old backups: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
   }
 }
 

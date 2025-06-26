@@ -143,10 +143,10 @@ export function cliOptionsToConfig(cliOptions: CliOptions): PartialConfig {
 
     if (cliOptions.endDate) {
       config.dateRange.endDate = cliOptions.endDate;
-    } else if (cliOptions.days && !cliOptions.startDate) {
-      // If only days is provided, calculate end date from today
+    } else if (cliOptions.days && !cliOptions.startDate && !cliOptions.endDate) {
+      // If only days is provided, calculate date range 
       const daysBack = Number.parseInt(cliOptions.days, 10);
-      const startDate = new Date(Date.now() - daysBack * 24 * 60 * 60 * 1000);
+      const startDate = new Date(Date.now() - (daysBack - 1) * 24 * 60 * 60 * 1000);
       config.dateRange.startDate = startDate.toISOString().split('T')[0];
       config.dateRange.endDate = new Date().toISOString().split('T')[0];
     }

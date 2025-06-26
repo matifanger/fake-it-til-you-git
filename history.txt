@@ -1,0 +1,3 @@
+# Fake Git History Log
+# Format: DATE | AUTHOR | EMAIL | MESSAGE
+

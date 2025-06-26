@@ -7,15 +7,88 @@ import { loadConfig, type CliOptions } from './config.js';
 import { GitOperations } from './git.js';
 import { generateAndCreateCommits, validateCommitPlan, generateCommitPlan, populateCommitMessages, calculateCommitStats } from './commits.js';
 
+// Global state for cleanup
+let globalGitOps: GitOperations | null = null;
+let isOperationInProgress = false;
+let currentBackup: import('./git.js').BackupInfo | null = null;
+
+/**
+ * Enhanced error handler with better context and cleanup
+ */
+export class FakeGitError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public recoverable: boolean = false,
+    public context?: any
+  ) {
+    super(message);
+    this.name = 'FakeGitError';
+  }
+}
+
+/**
+ * Setup cleanup handlers for graceful interruption
+ */
+function setupCleanupHandlers(): void {
+  const cleanup = async (signal: string) => {
+    if (!isOperationInProgress) {
+      console.log(chalk.yellow(`\n🔄 Received ${signal}, exiting cleanly...`));
+      process.exit(0);
+    }
+
+    console.log(chalk.yellow(`\n🛑 Received ${signal} during operation. Cleaning up...`));
+    
+         try {
+       if (globalGitOps && currentBackup) {
+         console.log(chalk.cyan('🔄 Restoring repository state from backup...'));
+         await globalGitOps.restoreFromBackup(currentBackup);
+         console.log(chalk.green('✅ Repository state restored successfully'));
+         
+         // Clean up the backup we just used
+         await globalGitOps.cleanupBackup(currentBackup);
+       }
+    } catch (error) {
+      console.error(chalk.red(`❌ Failed to restore repository state: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      console.error(chalk.red('⚠️  Repository might be in an inconsistent state. Manual cleanup may be required.'));
+    } finally {
+      console.log(chalk.yellow('👋 Cleanup completed. Exiting...'));
+      process.exit(1);
+    }
+  };
+
+  // Handle different termination signals
+  process.on('SIGINT', () => cleanup('SIGINT'));
+  process.on('SIGTERM', () => cleanup('SIGTERM'));
+  
+  // Handle uncaught exceptions
+  process.on('uncaughtException', async (error) => {
+    console.error(chalk.red('\n💥 Uncaught Exception:'), error);
+    await cleanup('UNCAUGHT_EXCEPTION');
+  });
+  
+  // Handle unhandled promise rejections
+  process.on('unhandledRejection', async (reason, promise) => {
+    console.error(chalk.red('\n💥 Unhandled Rejection at:'), promise, 'reason:', reason);
+    await cleanup('UNHANDLED_REJECTION');
+  });
+}
+
 export async function main(options: CliOptions): Promise<void> {
+  // Setup cleanup handlers early
+  setupCleanupHandlers();
+  
   const spinner = ora('Initializing fake-it-til-you-git...').start();
 
   try {
+    isOperationInProgress = true;
+    
     if (options.verbose) {
       console.log(chalk.blue('CLI Options:'), JSON.stringify(options, null, 2));
     }
 
     // Load and validate configuration
+    spinner.text = 'Loading configuration...';
     const config = await loadConfig(options);
     if (options.verbose) {
       console.log(chalk.blue('Final Configuration:'), JSON.stringify(config, null, 2));
@@ -24,9 +97,10 @@ export async function main(options: CliOptions): Promise<void> {
     spinner.succeed(chalk.green('✅ fake-it-til-you-git initialized successfully!'));
 
     // Initialize Git operations with proper directory handling
-    // Use development mode if --dev flag is set OR NODE_ENV is development/test
+    spinner.start('Initializing Git operations...');
     const isDevelopmentMode = config.options.dev || process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
     const gitOps = new GitOperations(isDevelopmentMode ? join(process.cwd(), 'test-repo') : undefined);
+    globalGitOps = gitOps; // Store for cleanup
     const repoPath = gitOps.getRepositoryPath();
     
     if (options.verbose) {
@@ -40,21 +114,30 @@ export async function main(options: CliOptions): Promise<void> {
     // Check if it's a Git repository
     const isRepo = await gitOps.isGitRepository();
     if (!isRepo) {
-      console.log(chalk.yellow('🔧 Initializing Git repository...'));
+      spinner.text = 'Initializing Git repository...';
       await gitOps.initRepository();
-      console.log(chalk.green('✅ Git repository initialized'));
+      spinner.succeed(chalk.green('✅ Git repository initialized'));
+    } else {
+      spinner.succeed(chalk.green('✅ Git repository detected'));
     }
 
     // Generate commit plan first (for preview/execution)
-    console.log(chalk.cyan('📋 Generating commit plan...'));
+    spinner.start('Generating commit plan...');
     const rawPlans = generateCommitPlan(config);
     const populatedPlans = populateCommitMessages(rawPlans, config);
     
-    // Validate the plan
+    // Validate the plan (after messages are populated)
     const validation = validateCommitPlan(populatedPlans, config);
     if (!validation.valid) {
-      throw new Error(`Invalid commit plan: ${validation.errors.join(', ')}`);
+      throw new FakeGitError(
+        `Invalid commit plan: ${validation.errors.join(', ')}`,
+        'INVALID_PLAN',
+        false,
+        { validation }
+      );
     }
+    
+    spinner.succeed(chalk.green('✅ Commit plan generated and validated'));
     
     if (validation.warnings.length > 0) {
       console.log(chalk.yellow('⚠️  Warnings:'));
@@ -105,6 +188,7 @@ export async function main(options: CliOptions): Promise<void> {
       
       console.log(chalk.yellow('\n🔍 Preview mode - no changes made to repository'));
       console.log(chalk.dim('💡 Tip: Remove --preview flag to actually create the commits'));
+      isOperationInProgress = false;
       return;
     }
 
@@ -113,6 +197,7 @@ export async function main(options: CliOptions): Promise<void> {
     if (!shouldProceed) {
       console.log(chalk.yellow('\n🚫 Operation cancelled by user'));
       console.log(chalk.dim('💡 Use --preview to see what would be created without making changes'));
+      isOperationInProgress = false;
       return;
     }
 
@@ -124,7 +209,7 @@ export async function main(options: CliOptions): Promise<void> {
       console.log(chalk.green('📝 Created history.txt file'));
     }
 
-    // Execute commit creation
+    // Execute commit creation with enhanced progress tracking
     console.log(chalk.cyan('\n🚀 Creating commits...'));
     const result = await createCommitsWithHistory(populatedPlans, config, gitOps, historyFilePath);
 
@@ -161,20 +246,134 @@ export async function main(options: CliOptions): Promise<void> {
         console.log(chalk.white(`   📅 Last commit date: ${repoInfo.lastCommit.date.toISOString().split('T')[0]}`));
       }
       
+      // Enhanced push functionality
       if (config.options.push && repoInfo.remote) {
-        console.log(chalk.yellow('\n🚀 Pushing to remote...'));
-        // TODO: Implement push functionality
-        console.log(chalk.yellow('   Push functionality not yet implemented'));
+        await handlePushToRemote(gitOps, repoInfo, config.options.verbose);
+      } else if (config.options.push && !repoInfo.remote) {
+        console.log(chalk.yellow('⚠️  Push requested but no remote configured'));
+        console.log(chalk.dim('💡 Configure a remote with: git remote add origin <url>'));
       }
+
+      // Clean up old backups on success
+      try {
+        await gitOps.cleanupOldBackups();
+        if (config.options.verbose) {
+          console.log(chalk.gray('🧹 Cleaned up old backups'));
+        }
+      } catch (error) {
+        // Don't fail the whole operation for backup cleanup issues
+        if (config.options.verbose) {
+          console.log(chalk.yellow(`⚠️  Failed to cleanup old backups: ${error instanceof Error ? error.message : 'Unknown error'}`));
+        }
+      }
+
     } else {
-      console.log(chalk.red('\n❌ Failed to create fake Git history'));
-      process.exit(1);
+      throw new FakeGitError(
+        'Failed to create fake Git history',
+        'COMMIT_CREATION_FAILED',
+        true,
+        { result }
+      );
     }
 
+    isOperationInProgress = false;
+
   } catch (error) {
+    isOperationInProgress = false;
     spinner.fail(chalk.red('❌ Execution failed'));
-    console.error(chalk.red(`Error: ${error instanceof Error ? error.message : 'Unknown error'}`));
+    
+    if (error instanceof FakeGitError) {
+      console.error(chalk.red(`\n💥 ${error.message}`));
+      
+      if (error.code === 'COMMIT_CREATION_FAILED' && error.recoverable) {
+        console.log(chalk.yellow('\n🔄 Attempting to recover...'));
+                 if (globalGitOps && currentBackup) {
+           try {
+             await globalGitOps.restoreFromBackup(currentBackup);
+             console.log(chalk.green('✅ Repository restored to previous state'));
+           } catch (restoreError) {
+             console.error(chalk.red(`❌ Failed to restore: ${restoreError instanceof Error ? restoreError.message : 'Unknown error'}`));
+           }
+         }
+      }
+      
+      if (options.verbose && error.context) {
+        console.error(chalk.gray('\n🔍 Error context:'), JSON.stringify(error.context, null, 2));
+      }
+    } else {
+      console.error(chalk.red(`\nError: ${error instanceof Error ? error.message : 'Unknown error'}`));
+      
+      if (options.verbose && error instanceof Error && error.stack) {
+        console.error(chalk.gray('\n🔍 Stack trace:'), error.stack);
+      }
+    }
+    
+    console.error(chalk.red('\n💡 Tips:'));
+    console.error(chalk.red('   - Use --preview to see what would be created without making changes'));
+    console.error(chalk.red('   - Use --verbose for more detailed error information'));
+    console.error(chalk.red('   - Check that your Git repository is in a clean state'));
+    
     process.exit(1);
+  }
+}
+
+/**
+ * Handle pushing to remote with proper error handling and progress
+ */
+async function handlePushToRemote(
+  gitOps: GitOperations,
+  repoInfo: any,
+  verbose: boolean
+): Promise<void> {
+  const pushSpinner = ora('Pushing commits to remote...').start();
+  
+  try {
+    // Check if we have commits to push
+    const status = await gitOps.getRepositoryStatus();
+    
+    if (status.ahead === 0) {
+      pushSpinner.info(chalk.yellow('📡 No commits to push - repository is up to date'));
+      return;
+    }
+    
+    pushSpinner.text = `Pushing ${status.ahead} commits to ${repoInfo.remote}...`;
+    
+    // Perform the push
+    const pushResult = await gitOps.push();
+    
+    if (pushResult.success) {
+      pushSpinner.succeed(chalk.green(`🚀 Successfully pushed ${status.ahead} commits to ${repoInfo.remote}`));
+      
+      if (verbose && pushResult.details) {
+        console.log(chalk.gray(`   Push details: ${pushResult.details}`));
+      }
+    } else {
+      throw new Error(pushResult.error || 'Push failed for unknown reason');
+    }
+    
+  } catch (error) {
+    pushSpinner.fail(chalk.red('❌ Failed to push to remote'));
+    
+    const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+    console.error(chalk.red(`   Error: ${errorMessage}`));
+    
+    // Provide helpful suggestions based on common push errors
+    if (errorMessage.includes('rejected')) {
+      console.log(chalk.yellow('\n💡 Push was rejected. This might be because:'));
+      console.log(chalk.yellow('   - The remote has commits that you don\'t have locally'));
+      console.log(chalk.yellow('   - You need to pull first: git pull origin main'));
+      console.log(chalk.yellow('   - Force push might be needed (use with caution): git push --force'));
+    } else if (errorMessage.includes('permission') || errorMessage.includes('authentication')) {
+      console.log(chalk.yellow('\n💡 Authentication failed. Make sure:'));
+      console.log(chalk.yellow('   - Your SSH key is properly configured'));
+      console.log(chalk.yellow('   - You have push access to the repository'));
+      console.log(chalk.yellow('   - Your credentials are up to date'));
+    } else if (errorMessage.includes('network') || errorMessage.includes('connection')) {
+      console.log(chalk.yellow('\n💡 Network error. Check your internet connection and try again.'));
+    }
+    
+    // Don't exit on push failure - the commits were created successfully
+    console.log(chalk.dim('\n📝 Note: Commits were created successfully locally. Push can be done manually later.'));
   }
 }
 
@@ -643,6 +842,7 @@ async function createCommitsWithHistory(
     let backup;
     try {
       backup = await gitOps.createBackup();
+      currentBackup = backup; // Store globally for cleanup
       console.log(chalk.gray(`   📦 Created backup: ${backup.id}`));
     } catch (error) {
       console.warn(chalk.yellow(`   ⚠️  Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}`));
