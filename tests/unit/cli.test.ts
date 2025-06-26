@@ -98,7 +98,7 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
       expect(result1.stderr).toContain('Use YYYY-MM-DD format');
 
       // Valid date format should not fail validation at CLI level
-      const result2 = await runCLI(['--start-date', '2023-01-01', '--dry-run']);
+      const result2 = await runCLI(['--start-date', '2023-01-01', '--preview']);
       expect(result2.code).toBe(0);
     });
 
@@ -110,7 +110,7 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
       expect(result1.stderr).toContain('uniform, random, gaussian, custom');
 
       // Valid distribution should not fail
-      const result2 = await runCLI(['--distribution', 'uniform', '--dry-run']);
+      const result2 = await runCLI(['--distribution', 'uniform', '--preview']);
       expect(result2.code).toBe(0);
     });
 
@@ -122,7 +122,7 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
       expect(result1.stderr).toContain('default, lorem, emoji');
 
       // Valid message style should not fail
-      const result2 = await runCLI(['--message-style', 'lorem', '--dry-run']);
+      const result2 = await runCLI(['--message-style', 'lorem', '--preview']);
       expect(result2.code).toBe(0);
     });
 
@@ -133,7 +133,7 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
       expect(result1.stderr).toContain('Invalid email format: invalid-email');
 
       // Valid email should not fail
-      const result2 = await runCLI(['--author-email', 'test@example.com', '--dry-run']);
+      const result2 = await runCLI(['--author-email', 'test@example.com', '--preview']);
       expect(result2.code).toBe(0);
     });
   });
@@ -161,16 +161,20 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
     });
 
     test('should warn about high commit counts', async () => {
+      // Test without --preview to trigger the warning
       const result = await runCLI(['--commits', '75']);
-      expect(result.code).toBe(0);
-      expect(result.stderr).toContain('Warning: High commits per day');
-      expect(result.stderr).toContain('Consider using --dry-run first');
+      // The command should fail (exit code 1) because it's trying to create commits without preview
+      expect(result.code).toBe(1);
+      // But it should still show the warning before failing
+      const output = result.stderr + result.stdout;
+      expect(output).toContain('Warning: High commits per day');
+      expect(output).toContain('Consider using --preview first');
     });
 
-    test('should warn about push option in dry-run mode', async () => {
-      const result = await runCLI(['--dry-run', '--push']);
+    test('should warn about push option in preview mode', async () => {
+      const result = await runCLI(['--preview', '--push']);
       expect(result.code).toBe(0);
-      expect(result.stderr).toContain('Warning: --push option ignored in dry-run mode');
+      expect(result.stderr).toContain('Warning: --push option ignored in preview mode');
     });
 
     test('should reject empty seed', async () => {
@@ -187,7 +191,7 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
         'John Doe',
         '--author-email',
         'john@example.com',
-        '--dry-run',
+        '--preview',
       ]);
       expect(result.code).toBe(0);
     });
@@ -196,7 +200,7 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
       const distributions = ['uniform', 'random', 'gaussian', 'custom'];
 
       for (const dist of distributions) {
-        const result = await runCLI(['--distribution', dist, '--dry-run']);
+        const result = await runCLI(['--distribution', dist, '--preview']);
         expect(result.code).toBe(0);
       }
     });
@@ -205,7 +209,7 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
       const styles = ['default', 'lorem', 'emoji'];
 
       for (const style of styles) {
-        const result = await runCLI(['--message-style', style, '--dry-run']);
+        const result = await runCLI(['--message-style', style, '--preview']);
         expect(result.code).toBe(0);
       }
     });
@@ -242,7 +246,7 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
         'uniform',
         '--author-name',
         'Test User',
-        '--dry-run',
+        '--preview',
         '--verbose',
       ]);
 
@@ -252,25 +256,25 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
     });
 
     test('should handle config file option', async () => {
-      const result = await runCLI(['--config', './test-configs/fake-git.config.json', '--dry-run']);
+      const result = await runCLI(['--config', './test-configs/fake-git.config.json', '--preview']);
       expect(result.code).toBe(0);
     });
   });
 
   describe('Performance and Edge Cases', () => {
     test('should handle maximum valid values', async () => {
-      const result = await runCLI(['--days', '3650', '--commits', '100', '--dry-run']);
+      const result = await runCLI(['--days', '3650', '--commits', '100', '--preview']);
       expect(result.code).toBe(0);
     });
 
     test('should handle minimum valid values', async () => {
-      const result = await runCLI(['--days', '1', '--commits', '1', '--dry-run']);
+      const result = await runCLI(['--days', '1', '--commits', '1', '--preview']);
       expect(result.code).toBe(0);
     });
 
     test('should handle long author names', async () => {
       const longName = 'A'.repeat(99); // Maximum valid length
-      const result = await runCLI(['--author-name', longName, '--dry-run']);
+      const result = await runCLI(['--author-name', longName, '--preview']);
       expect(result.code).toBe(0);
     });
   });

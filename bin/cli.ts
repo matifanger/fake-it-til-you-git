@@ -24,13 +24,16 @@ ${chalk.cyan('Examples:')}
   fake-it-til-you-git --author-name "John Doe" --author-email "john@example.com" --distribution uniform
 
   ${chalk.dim('# Preview commits without creating them')}
-  fake-it-til-you-git --dry-run --verbose
+  fake-it-til-you-git --preview --verbose
 
   ${chalk.dim('# Use a custom configuration file')}
   fake-it-til-you-git --config my-config.json
 
   ${chalk.dim('# Generate reproducible results with seed')}
   fake-it-til-you-git --seed "my-seed-123" --commits 5
+
+  ${chalk.dim('# Development mode (use test-repo directory)')}
+  fake-it-til-you-git --dev --commits 10 --days 30
 
 ${chalk.cyan('Configuration:')}
   You can use a JSON configuration file to set defaults. CLI arguments will override config file values.
@@ -88,7 +91,7 @@ program
 
 // Behavior Options
 program
-  .option('--dry-run', 'Preview commits without creating them (safe mode)', false)
+  .option('--preview', 'Preview commits without creating them (safe mode)', false)
   .option(
     '--config <path>',
     'Path to JSON configuration file (default: ./test-configs/fake-git.config.json)',
@@ -96,6 +99,7 @@ program
   )
   .option('--push', 'Push commits to remote repository after creation', false)
   .option('--seed <string>', 'Random seed for reproducible results (any string)')
+  .option('--dev', 'Development mode: use test-repo directory instead of current directory', false)
   .option('-v, --verbose', 'Enable verbose output for debugging', false);
 
 // Validation functions
@@ -254,15 +258,15 @@ function validateOptionCombinations(options: Record<string, any>): void {
   }
 
   // Warn about potentially problematic combinations
-  if (options.commits && Number.parseInt(options.commits, 10) > 50 && !options.dryRun) {
+  if (options.commits && Number.parseInt(options.commits, 10) > 50 && !options.preview) {
     console.warn(
       chalk.yellow(
-        '⚠️  Warning: High commits per day (>50) may create unrealistic patterns. Consider using --dry-run first.'
+        '⚠️  Warning: High commits per day (>50) may create unrealistic patterns. Consider using --preview first.'
       )
     );
   }
 
-  if (options.push && options.dryRun) {
-    console.warn(chalk.yellow('⚠️  Warning: --push option ignored in dry-run mode.'));
+  if (options.push && options.preview) {
+    console.warn(chalk.yellow('⚠️  Warning: --push option ignored in preview mode.'));
   }
 }

@@ -16,6 +16,9 @@ import {
 } from '../../src/commits.js';
 import type { Config } from '../../src/config.js';
 import { generateDateRange, parseDate } from '../../src/utils/dates.js';
+import { populateCommitMessages, createCommitsFromPlan, generateAndCreateCommits, validateCommitPlan } from '../../src/commits.js';
+import { getDefaultConfig } from '../../src/config.js';
+import { GitOperations } from '../../src/git.js';
 
 describe('Commit Distribution Algorithms', () => {
   const testDateRange = generateDateRange(new Date('2023-01-01'), new Date('2023-01-31'));
@@ -270,9 +273,10 @@ describe('Commit Distribution Algorithms', () => {
         messageStyle: 'default',
       },
       options: {
-        dryRun: false,
+        preview: false,
         push: false,
         verbose: false,
+        dev: true,
       },
       seed: 'test-seed',
     };
@@ -407,6 +411,459 @@ describe('Commit Distribution Algorithms', () => {
       expect(stats.averagePerDay).toBeCloseTo(2.33, 2);
       expect(stats.maxPerDay).toBe(4);
       expect(stats.minPerDay).toBe(1);
+    });
+  });
+});
+
+describe('Step 5.2: Commit Creation', () => {
+  describe('populateCommitMessages', () => {
+    it('should populate commit plans with messages based on style', () => {
+      const plans: CommitPlan[] = [
+        { date: new Date('2023-01-01'), count: 2, messages: [] },
+        { date: new Date('2023-01-02'), count: 1, messages: [] },
+        { date: new Date('2023-01-03'), count: 0, messages: [] },
+      ];
+
+      const config: Config = {
+        ...getDefaultConfig(),
+        commits: {
+          maxPerDay: 5,
+          distribution: 'uniform',
+          messageStyle: 'emoji',
+        },
+        seed: 'test-seed',
+      };
+
+      const populatedPlans = populateCommitMessages(plans, config);
+
+      expect(populatedPlans).toHaveLength(3);
+      expect(populatedPlans[0].messages).toHaveLength(2);
+      expect(populatedPlans[1].messages).toHaveLength(1);
+      expect(populatedPlans[2].messages).toHaveLength(0);
+
+      // All messages should be strings
+      populatedPlans.forEach(plan => {
+        plan.messages.forEach(message => {
+          expect(typeof message).toBe('string');
+          expect(message.length).toBeGreaterThan(0);
+        });
+      });
+    });
+
+    it('should handle different message styles', () => {
+      const plans: CommitPlan[] = [
+        { date: new Date('2023-01-01'), count: 1, messages: [] },
+      ];
+
+      const configs = [
+        { messageStyle: 'default' as const },
+        { messageStyle: 'lorem' as const },
+        { messageStyle: 'emoji' as const },
+      ];
+
+      configs.forEach(({ messageStyle }) => {
+        const config: Config = {
+          ...getDefaultConfig(),
+          commits: {
+            maxPerDay: 5,
+            distribution: 'uniform',
+            messageStyle,
+          },
+        };
+
+        const populatedPlans = populateCommitMessages(plans, config);
+        expect(populatedPlans[0].messages).toHaveLength(1);
+        expect(typeof populatedPlans[0].messages[0]).toBe('string');
+      });
+    });
+
+    it('should use fallback messages when message generation fails', () => {
+      const plans: CommitPlan[] = [
+        { date: new Date('2023-01-01'), count: 2, messages: [] },
+      ];
+
+      const config: Config = {
+        ...getDefaultConfig(),
+        commits: {
+          maxPerDay: 5,
+          distribution: 'uniform',
+          messageStyle: 'invalid-style' as any,
+        },
+      };
+
+      const populatedPlans = populateCommitMessages(plans, config);
+      
+      expect(populatedPlans[0].messages).toHaveLength(2);
+      expect(populatedPlans[0].messages[0]).toBe('Update 1');
+      expect(populatedPlans[0].messages[1]).toBe('Update 2');
+    });
+
+    it('should generate consistent messages with same seed', () => {
+      const plans: CommitPlan[] = [
+        { date: new Date('2023-01-01'), count: 3, messages: [] },
+      ];
+
+      const config: Config = {
+        ...getDefaultConfig(),
+        commits: {
+          maxPerDay: 5,
+          distribution: 'uniform',
+          messageStyle: 'emoji',
+        },
+        seed: 'consistent-seed',
+      };
+
+      const result1 = populateCommitMessages(plans, config);
+      const result2 = populateCommitMessages(plans, config);
+
+      expect(result1[0].messages).toEqual(result2[0].messages);
+    });
+  });
+
+  describe('validateCommitPlan', () => {
+    const validConfig: Config = getDefaultConfig();
+
+    it('should validate a correct commit plan', () => {
+      const plans: CommitPlan[] = [
+        { date: new Date('2023-01-01'), count: 2, messages: ['msg1', 'msg2'] },
+        { date: new Date('2023-01-02'), count: 1, messages: ['msg3'] },
+      ];
+
+      const result = validateCommitPlan(plans, validConfig);
+
+      expect(result.valid).toBe(true);
+      expect(result.errors).toHaveLength(0);
+    });
+
+    it('should detect empty or invalid plans', () => {
+      const emptyPlans: CommitPlan[] = [];
+      const result = validateCommitPlan(emptyPlans, validConfig);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('Commit plan is empty or invalid');
+    });
+
+    it('should detect invalid dates', () => {
+      const plans = [
+        { date: null as any, count: 1, messages: ['msg'] },
+        { date: 'invalid-date' as any, count: 1, messages: ['msg'] },
+      ];
+
+      const result = validateCommitPlan(plans, validConfig);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('Plan at index 0 has invalid date');
+      expect(result.errors).toContain('Plan at index 1 has invalid date');
+    });
+
+    it('should detect invalid commit counts', () => {
+      const plans = [
+        { date: new Date(), count: -1, messages: [] },
+        { date: new Date(), count: 'invalid' as any, messages: [] },
+      ];
+
+      const result = validateCommitPlan(plans, validConfig);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('Plan at index 0 has invalid commit count');
+      expect(result.errors).toContain('Plan at index 1 has invalid commit count');
+    });
+
+    it('should warn about missing messages', () => {
+      const plans: CommitPlan[] = [
+        { date: new Date('2023-01-01'), count: 2, messages: [] },
+      ];
+
+      const result = validateCommitPlan(plans, validConfig);
+
+      expect(result.valid).toBe(true);
+      expect(result.warnings).toContain('Plan at index 0 has commits but no messages');
+    });
+
+    it('should warn about exceeding maxPerDay', () => {
+      const config: Config = {
+        ...validConfig,
+        commits: {
+          ...validConfig.commits,
+          maxPerDay: 5,
+        },
+      };
+
+      const plans: CommitPlan[] = [
+        { date: new Date('2023-01-01'), count: 10, messages: [] },
+      ];
+
+      const result = validateCommitPlan(plans, config);
+
+      expect(result.valid).toBe(true);
+      expect(result.warnings).toContain('Plan at index 0 exceeds maxPerDay limit (10 > 5)');
+    });
+
+    it('should warn about large commit volumes', () => {
+      const plans: CommitPlan[] = Array.from({ length: 100 }, (_, i) => ({
+        date: new Date(2023, 0, i + 1),
+        count: 101,
+        messages: [],
+      }));
+
+      const result = validateCommitPlan(plans, validConfig);
+
+      expect(result.valid).toBe(true);
+      expect(result.warnings.some(w => w.includes('Large number of commits'))).toBe(true);
+    });
+
+    it('should detect non-chronological dates', () => {
+      const plans: CommitPlan[] = [
+        { date: new Date('2023-01-02'), count: 1, messages: ['msg1'] },
+        { date: new Date('2023-01-01'), count: 1, messages: ['msg2'] },
+      ];
+
+      const result = validateCommitPlan(plans, validConfig);
+
+      expect(result.valid).toBe(false);
+      expect(result.errors).toContain('Commit plan dates are not in chronological order');
+    });
+  });
+
+  describe('createCommitsFromPlan', () => {
+    let mockGitOps: jest.Mocked<GitOperations>;
+
+    beforeEach(() => {
+      mockGitOps = {
+        isWorkingDirectoryClean: jest.fn().mockResolvedValue(true),
+        createBackup: jest.fn().mockResolvedValue({
+          id: 'backup-123',
+          timestamp: new Date(),
+          branch: 'main',
+          lastCommitHash: 'abc123',
+          totalCommits: 5,
+          backupPath: '/tmp/backup',
+          repositoryPath: '/repo',
+        }),
+        addAll: jest.fn().mockResolvedValue(undefined),
+                 createCommit: jest.fn().mockResolvedValue({ 
+           commit: 'commit-hash-123',
+           author: { name: 'Test', email: 'test@example.com' },
+           branch: 'main',
+           root: false,
+           summary: { changes: 1, insertions: 1, deletions: 0 }
+         }),
+      } as any;
+    });
+
+    it('should handle empty commit plan', async () => {
+      const plans: CommitPlan[] = [];
+      const config = getDefaultConfig();
+
+      const result = await createCommitsFromPlan(plans, config, mockGitOps);
+
+      expect(result.success).toBe(true);
+      expect(result.totalCommits).toBe(0);
+      expect(result.successfulCommits).toBe(0);
+      expect(result.failedCommits).toBe(0);
+    });
+
+    it('should handle plans with zero commits', async () => {
+      const plans: CommitPlan[] = [
+        { date: new Date('2023-01-01'), count: 0, messages: [] },
+      ];
+      const config = getDefaultConfig();
+
+      const result = await createCommitsFromPlan(plans, config, mockGitOps);
+
+      expect(result.success).toBe(true);
+      expect(result.totalCommits).toBe(0);
+      expect(mockGitOps.createCommit).not.toHaveBeenCalled();
+    });
+
+    it('should fail if working directory is not clean', async () => {
+      mockGitOps.isWorkingDirectoryClean.mockResolvedValue(false);
+
+      const plans: CommitPlan[] = [
+        { date: new Date('2023-01-01'), count: 1, messages: ['Test commit'] },
+      ];
+      const config = getDefaultConfig();
+
+      const result = await createCommitsFromPlan(plans, config, mockGitOps);
+
+      expect(result.success).toBe(false);
+      expect(result.errors[0]).toContain('Working directory is not clean');
+    });
+
+    it('should successfully create commits', async () => {
+      const plans: CommitPlan[] = [
+        { date: new Date('2023-01-01'), count: 2, messages: ['Commit 1', 'Commit 2'] },
+        { date: new Date('2023-01-02'), count: 1, messages: ['Commit 3'] },
+      ];
+      const config = getDefaultConfig();
+
+      const result = await createCommitsFromPlan(plans, config, mockGitOps);
+
+      expect(result.success).toBe(true);
+      expect(result.totalCommits).toBe(3);
+      expect(result.successfulCommits).toBe(3);
+      expect(result.failedCommits).toBe(0);
+      expect(result.commitHashes).toHaveLength(3);
+      expect(mockGitOps.createCommit).toHaveBeenCalledTimes(3);
+    });
+
+    it('should handle commit creation failures gracefully', async () => {
+             mockGitOps.createCommit
+         .mockResolvedValueOnce({ 
+           commit: 'hash1',
+           author: { name: 'Test', email: 'test@example.com' },
+           branch: 'main',
+           root: false,
+           summary: { changes: 1, insertions: 1, deletions: 0 }
+         })
+         .mockRejectedValueOnce(new Error('Commit failed'))
+         .mockResolvedValueOnce({ 
+           commit: 'hash3',
+           author: { name: 'Test', email: 'test@example.com' },
+           branch: 'main',
+           root: false,
+           summary: { changes: 1, insertions: 1, deletions: 0 }
+         });
+
+      const plans: CommitPlan[] = [
+        { date: new Date('2023-01-01'), count: 3, messages: ['C1', 'C2', 'C3'] },
+      ];
+      const config = getDefaultConfig();
+
+      const result = await createCommitsFromPlan(plans, config, mockGitOps);
+
+      expect(result.success).toBe(true); // Still success because some commits succeeded
+      expect(result.totalCommits).toBe(3);
+      expect(result.successfulCommits).toBe(2);
+      expect(result.failedCommits).toBe(1);
+      expect(result.errors).toHaveLength(1);
+      expect(result.commitHashes).toHaveLength(2);
+    });
+
+    it('should use correct commit dates and authors', async () => {
+      const testDate = new Date('2023-06-15T10:30:00Z');
+      const plans: CommitPlan[] = [
+        { date: testDate, count: 1, messages: ['Test message'] },
+      ];
+      
+      const config: Config = {
+        ...getDefaultConfig(),
+        author: {
+          name: 'Test Author',
+          email: 'test@example.com',
+        },
+      };
+
+      await createCommitsFromPlan(plans, config, mockGitOps);
+
+      expect(mockGitOps.createCommit).toHaveBeenCalledWith(
+        'Test message',
+        expect.any(Date),
+        { name: 'Test Author', email: 'test@example.com' }
+      );
+
+      const callDate = (mockGitOps.createCommit as jest.Mock).mock.calls[0][1];
+      expect(callDate.getFullYear()).toBe(2023);
+      expect(callDate.getMonth()).toBe(5); // June (0-indexed)
+      expect(callDate.getDate()).toBe(15);
+    });
+
+    it('should abort after too many failures', async () => {
+      mockGitOps.createCommit.mockRejectedValue(new Error('Always fails'));
+
+      // Create a plan with many commits to trigger the failure limit
+      const plans: CommitPlan[] = [
+        {
+          date: new Date('2023-01-01'),
+          count: 15,
+          messages: Array.from({ length: 15 }, (_, i) => `Commit ${i + 1}`),
+        },
+      ];
+      const config = getDefaultConfig();
+
+      const result = await createCommitsFromPlan(plans, config, mockGitOps);
+
+      expect(result.success).toBe(false);
+      expect(result.failedCommits).toBeGreaterThan(10);
+      expect(result.errors.some(e => e.includes('Too many commit failures'))).toBe(true);
+    });
+  });
+
+  describe('generateAndCreateCommits', () => {
+    let mockGitOps: jest.Mocked<GitOperations>;
+
+    beforeEach(() => {
+      mockGitOps = {
+        isWorkingDirectoryClean: jest.fn().mockResolvedValue(true),
+        createBackup: jest.fn().mockResolvedValue({
+          id: 'backup-123',
+          timestamp: new Date(),
+          branch: 'main',
+          lastCommitHash: 'abc123',
+          totalCommits: 5,
+          backupPath: '/tmp/backup',
+          repositoryPath: '/repo',
+        }),
+        addAll: jest.fn().mockResolvedValue(undefined),
+                 createCommit: jest.fn().mockResolvedValue({ 
+           commit: 'commit-hash',
+           author: { name: 'Test', email: 'test@example.com' },
+           branch: 'main',
+           root: false,
+           summary: { changes: 1, insertions: 1, deletions: 0 }
+         }),
+      } as any;
+    });
+
+    it('should complete the full workflow successfully', async () => {
+      const config: Config = {
+        ...getDefaultConfig(),
+        dateRange: {
+          startDate: '2023-01-01',
+          endDate: '2023-01-03',
+        },
+        commits: {
+          maxPerDay: 3,
+          distribution: 'uniform',
+          messageStyle: 'emoji',
+        },
+        seed: 'test-workflow',
+      };
+
+      const result = await generateAndCreateCommits(config, mockGitOps);
+
+      expect(result.success).toBe(true);
+      expect(result.totalCommits).toBeGreaterThan(0);
+      expect(result.successfulCommits).toBe(result.totalCommits);
+      expect(result.failedCommits).toBe(0);
+      expect(result.duration).toBeGreaterThanOrEqual(0);
+    });
+
+    it('should handle errors gracefully', async () => {
+      mockGitOps.isWorkingDirectoryClean.mockRejectedValue(new Error('Git error'));
+
+      const config = getDefaultConfig();
+      const result = await generateAndCreateCommits(config, mockGitOps);
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('Critical error during commit creation');
+    });
+
+    it('should handle invalid date ranges', async () => {
+      const config: Config = {
+        ...getDefaultConfig(),
+        dateRange: {
+          startDate: 'invalid-date',
+          endDate: '2023-01-01',
+        },
+      };
+
+      const result = await generateAndCreateCommits(config, mockGitOps);
+
+      expect(result.success).toBe(false);
+      expect(result.errors).toHaveLength(1);
+      expect(result.errors[0]).toContain('Failed to generate and create commits');
     });
   });
 });

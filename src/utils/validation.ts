@@ -23,9 +23,10 @@ export interface CommitsConfig {
 }
 
 export interface OptionsConfig {
-  dryRun?: boolean;
+  preview?: boolean;
   push?: boolean;
   verbose?: boolean;
+  dev?: boolean;
   seed?: string;
 }
 
@@ -247,9 +248,14 @@ export function validateOptions(options: unknown): ValidationResult {
 
   const optionsObj = options as Record<string, unknown>;
 
-  // Validate dryRun
-  if (optionsObj.dryRun !== undefined && typeof optionsObj.dryRun !== 'boolean') {
-    errors.push('dryRun option must be a boolean');
+  // Validate preview
+  if (optionsObj.preview !== undefined && typeof optionsObj.preview !== 'boolean') {
+    errors.push('preview option must be a boolean');
+  }
+
+  // Validate dev
+  if (optionsObj.dev !== undefined && typeof optionsObj.dev !== 'boolean') {
+    errors.push('dev option must be a boolean');
   }
 
   // Validate push
@@ -359,9 +365,10 @@ export function sanitizeConfig(config: Config): Config {
     },
     options: config.options
       ? {
-          dryRun: Boolean(config.options.dryRun),
+          preview: Boolean(config.options.preview),
           push: Boolean(config.options.push),
           verbose: Boolean(config.options.verbose),
+          dev: Boolean(config.options.dev),
           ...(config.options.seed && { seed: sanitizeString(config.options.seed) }),
         }
       : {},

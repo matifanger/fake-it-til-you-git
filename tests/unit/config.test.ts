@@ -36,7 +36,7 @@ describe('Config Loader', () => {
       messageStyle: 'emoji' as const,
     },
     options: {
-      dryRun: true,
+      preview: true,
       push: false,
       verbose: true,
     },
@@ -97,7 +97,7 @@ describe('Config Loader', () => {
         commits: '15',
         distribution: 'uniform',
         messageStyle: 'lorem',
-        dryRun: true,
+        preview: true,
         verbose: false,
         seed: 'cli-seed',
       };
@@ -111,7 +111,7 @@ describe('Config Loader', () => {
           messageStyle: 'lorem',
         },
         options: {
-          dryRun: true,
+          preview: true,
           verbose: false,
         },
         seed: 'cli-seed',
@@ -246,19 +246,19 @@ describe('Config Loader', () => {
       expect(result.author.email).toBe('fake@example.com'); // default
       expect(result.commits.maxPerDay).toBe(20);
       expect(result.commits.distribution).toBe('random'); // default
-      expect(result.options.dryRun).toBe(false); // default
+      expect(result.options.preview).toBe(false); // default
     });
 
     it('should handle nested partial objects correctly', () => {
       const partialConfig: PartialConfig = {
         options: {
-          dryRun: true,
+          preview: true,
         },
       };
 
       const result = applyDefaults(partialConfig);
 
-      expect(result.options.dryRun).toBe(true);
+      expect(result.options.preview).toBe(true);
       expect(result.options.push).toBe(false); // default
       expect(result.options.verbose).toBe(false); // default
     });
@@ -288,7 +288,7 @@ describe('Config Loader', () => {
       expect(result.commits.maxPerDay).toBe(25); // CLI override
       expect(result.commits.distribution).toBe('gaussian'); // From file
       expect(result.options.push).toBe(true); // CLI override
-      expect(result.options.dryRun).toBe(true); // From file
+      expect(result.options.preview).toBe(true); // From file
       expect(result.seed).toBe('test-seed'); // From file
     });
 
@@ -299,7 +299,7 @@ describe('Config Loader', () => {
         commits: '10',
         distribution: 'uniform',
         messageStyle: 'default',
-        dryRun: true,
+        preview: true,
       };
 
       const result = await loadConfig(cliOptions);
@@ -308,7 +308,7 @@ describe('Config Loader', () => {
       expect(result.dateRange.endDate).toBe('2023-12-31');
       expect(result.commits.maxPerDay).toBe(10);
       expect(result.commits.distribution).toBe('uniform');
-      expect(result.options.dryRun).toBe(true);
+      expect(result.options.preview).toBe(true);
       expect(result.author.name).toBe('Fake Git User'); // default
     });
 
@@ -337,13 +337,13 @@ describe('Config Loader', () => {
     it('should use default config path when not specified', async () => {
       const cliOptions: CliOptions = {
         commits: '8',
-        dryRun: true,
+        preview: true,
       };
 
       const result = await loadConfig(cliOptions);
 
       expect(result.commits.maxPerDay).toBe(8);
-      expect(result.options.dryRun).toBe(true);
+      expect(result.options.preview).toBe(true);
       expect(result.author.name).toBe('Fake Git User'); // default
     });
 
@@ -379,7 +379,7 @@ describe('Config Loader', () => {
       expect(result.author.name).toBe('Test User');
       expect(result.dateRange.endDate).toBe('2023-12-31');
       expect(result.commits.distribution).toBe('gaussian');
-      expect(result.options.dryRun).toBe(true);
+      expect(result.options.preview).toBe(true);
 
       // CLI overrides
       expect(result.dateRange.startDate).toBe('2023-06-01');
@@ -401,7 +401,7 @@ describe('Config Loader', () => {
       expect(defaultConfig.commits.maxPerDay).toBe(10);
       expect(defaultConfig.commits.distribution).toBe('random');
       expect(defaultConfig.commits.messageStyle).toBe('default');
-      expect(defaultConfig.options.dryRun).toBe(false);
+      expect(defaultConfig.options.preview).toBe(false);
       expect(defaultConfig.options.push).toBe(false);
       expect(defaultConfig.options.verbose).toBe(false);
       expect(defaultConfig.dateRange.startDate).toBeDefined();
@@ -438,7 +438,7 @@ describe('Config Loader', () => {
 
         expect(result.author).toEqual(partialConfigContent.author);
         expect(result.commits.maxPerDay).toBe(10); // default
-        expect(result.options.dryRun).toBe(false); // default
+        expect(result.options.preview).toBe(false); // default
       } finally {
         await unlink(partialConfigPath);
       }
@@ -465,7 +465,10 @@ describe('Config Loader', () => {
 
         expect(result.author).toEqual(validConfigContent.author);
         expect(result.commits).toEqual(validConfigContent.commits);
-        expect(result.options).toEqual(validConfigContent.options);
+        expect(result.options).toEqual({
+          ...validConfigContent.options,
+          dev: false, // Default value added by the system
+        });
         expect(result.seed).toBe(validConfigContent.seed);
         expect((result as any).extraProperty).toBeUndefined();
       } finally {
@@ -476,7 +479,7 @@ describe('Config Loader', () => {
     it('should handle CLI options with undefined values', () => {
       const cliOptions: CliOptions = {
         commits: undefined,
-        dryRun: undefined,
+        preview: false,
         verbose: false,
       };
 

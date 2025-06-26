@@ -7,6 +7,8 @@
 import { randomInt } from 'node:crypto';
 import type { Config } from './config.js';
 import { generateDateRange, parseDate } from './utils/dates.js';
+import { generateRandomMessage, type MessageStyle } from './utils/messages.js';
+import { GitOperations } from './git.js';
 
 export interface CommitPlan {
   date: Date;
@@ -328,5 +330,296 @@ export function calculateCommitStats(plans: CommitPlan[]): {
     averagePerDay: activeDays > 0 ? totalCommits / activeDays : 0,
     maxPerDay: Math.max(...commitCounts),
     minPerDay: Math.min(...commitCounts),
+  };
+}
+
+/**
+ * Result of commit creation process
+ */
+export interface CommitCreationResult {
+  success: boolean;
+  totalCommits: number;
+  successfulCommits: number;
+  failedCommits: number;
+  errors: string[];
+  commitHashes: string[];
+  duration: number; // in milliseconds
+}
+
+/**
+ * Populate commit plan with actual messages based on style
+ */
+export function populateCommitMessages(
+  plans: CommitPlan[],
+  config: Config
+): CommitPlan[] {
+  const style = config.commits.messageStyle;
+  const customMessages: string[] = []; // TODO: Add support for custom messages in config
+  const seed = config.seed;
+
+  return plans.map((plan) => {
+    const messages: string[] = [];
+
+    for (let i = 0; i < plan.count; i++) {
+      try {
+        const message = generateRandomMessage({
+          style: style as MessageStyle,
+          customMessages,
+          seed: seed ? `${seed}-${plan.date.toISOString()}-${i}` : undefined,
+        });
+        messages.push(message);
+      } catch (error) {
+        // Fallback to simple numbered message if generation fails
+        const fallbackMessage = `Update ${i + 1}`;
+        messages.push(fallbackMessage);
+        console.warn(
+          `Failed to generate message for ${plan.date.toISOString()}: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }. Using fallback: "${fallbackMessage}"`
+        );
+      }
+    }
+
+    return {
+      ...plan,
+      messages,
+    };
+  });
+}
+
+/**
+ * Create actual commits based on the populated commit plan
+ */
+export async function createCommitsFromPlan(
+  plans: CommitPlan[],
+  config: Config,
+  gitOps: GitOperations
+): Promise<CommitCreationResult> {
+  const startTime = Date.now();
+  const result: CommitCreationResult = {
+    success: false,
+    totalCommits: 0,
+    successfulCommits: 0,
+    failedCommits: 0,
+    errors: [],
+    commitHashes: [],
+    duration: 0,
+  };
+
+  // Calculate total commits to create
+  result.totalCommits = plans.reduce((sum, plan) => sum + plan.count, 0);
+
+  if (result.totalCommits === 0) {
+    result.success = true;
+    result.duration = Date.now() - startTime;
+    return result;
+  }
+
+  try {
+    // Ensure we have a clean working directory
+    const isClean = await gitOps.isWorkingDirectoryClean();
+    if (!isClean) {
+      throw new Error(
+        'Working directory is not clean. Please commit or stash your changes before proceeding.'
+      );
+    }
+
+    // Create a backup before starting
+    let backup;
+    try {
+      backup = await gitOps.createBackup();
+      console.log(`Created backup: ${backup.id}`);
+    } catch (error) {
+      console.warn(
+        `Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
+    }
+
+    // Process each day's commits
+    for (const plan of plans) {
+      if (plan.count === 0 || plan.messages.length === 0) {
+        continue;
+      }
+
+      // Create commits for this day
+      for (let i = 0; i < plan.count && i < plan.messages.length; i++) {
+        try {
+          // Add a small dummy file change for each commit
+          const commitMessage = plan.messages[i];
+          const commitDate = new Date(plan.date);
+          
+          // Add slight time variation to avoid conflicts (spread commits across the day)
+          const hoursOffset = Math.floor((i * 24) / plan.count);
+          const minutesOffset = Math.floor(Math.random() * 60);
+          commitDate.setHours(hoursOffset, minutesOffset, 0, 0);
+
+          const author = {
+            name: config.author.name,
+            email: config.author.email,
+          };
+
+          // Ensure there's something to commit by adding all changes
+          await gitOps.addAll();
+
+          const commitResult = await gitOps.createCommit(commitMessage, commitDate, author);
+
+          result.commitHashes.push(commitResult.commit);
+          result.successfulCommits++;
+
+          // Optional: Add a small delay to avoid overwhelming the system
+          if (result.totalCommits > 100 && i % 10 === 0) {
+            await new Promise((resolve) => setTimeout(resolve, 10));
+          }
+        } catch (error) {
+          const errorMessage = `Failed to create commit on ${plan.date.toISOString()}: ${
+            error instanceof Error ? error.message : 'Unknown error'
+          }`;
+          result.errors.push(errorMessage);
+          result.failedCommits++;
+          console.error(errorMessage);
+
+          // If too many commits are failing, abort the process
+          if (result.failedCommits > 10) {
+            throw new Error(
+              `Too many commit failures (${result.failedCommits}). Aborting to prevent further issues.`
+            );
+          }
+        }
+      }
+    }
+
+    // Check final success status
+    result.success = result.failedCommits === 0 || result.successfulCommits > 0;
+
+    if (result.success) {
+      console.log(
+        `Successfully created ${result.successfulCommits}/${result.totalCommits} commits`
+      );
+    } else {
+      console.error(
+        `Commit creation failed: ${result.failedCommits} failures out of ${result.totalCommits} attempts`
+      );
+    }
+  } catch (error) {
+    const errorMessage = `Critical error during commit creation: ${
+      error instanceof Error ? error.message : 'Unknown error'
+    }`;
+    result.errors.push(errorMessage);
+    result.success = false;
+    console.error(errorMessage);
+  }
+
+  result.duration = Date.now() - startTime;
+  return result;
+}
+
+/**
+ * Main function to generate and create commits based on configuration
+ * This is the main entry point for Step 5.2
+ */
+export async function generateAndCreateCommits(
+  config: Config,
+  gitOps: GitOperations
+): Promise<CommitCreationResult> {
+  try {
+    console.log('Generating commit plan...');
+    
+    // Step 1: Generate the distribution plan
+    const rawPlans = generateCommitPlan(config);
+    
+    // Step 2: Populate with actual messages
+    console.log('Populating commit messages...');
+    const populatedPlans = populateCommitMessages(rawPlans, config);
+    
+    // Step 3: Display preview statistics
+    const stats = calculateCommitStats(populatedPlans);
+    console.log('\nCommit Plan Statistics:');
+    console.log(`  Total commits: ${stats.totalCommits}`);
+    console.log(`  Active days: ${stats.activeDays}/${stats.totalDays}`);
+    console.log(`  Average per active day: ${stats.averagePerDay.toFixed(1)}`);
+    console.log(`  Max per day: ${stats.maxPerDay}`);
+    console.log(`  Date range: ${populatedPlans[0]?.date.toISOString().split('T')[0]} to ${populatedPlans[populatedPlans.length - 1]?.date.toISOString().split('T')[0]}`);
+    
+    // Step 4: Create the actual commits
+    console.log('\nCreating commits...');
+    const result = await createCommitsFromPlan(populatedPlans, config, gitOps);
+    
+    return result;
+  } catch (error) {
+    const errorMessage = `Failed to generate and create commits: ${
+      error instanceof Error ? error.message : 'Unknown error'
+    }`;
+    
+    return {
+      success: false,
+      totalCommits: 0,
+      successfulCommits: 0,
+      failedCommits: 1,
+      errors: [errorMessage],
+      commitHashes: [],
+      duration: 0,
+    };
+  }
+}
+
+/**
+ * Validate commit plan before execution
+ */
+export function validateCommitPlan(
+  plans: CommitPlan[],
+  config: Config
+): { valid: boolean; errors: string[]; warnings: string[] } {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  // Validate basic structure
+  if (!Array.isArray(plans) || plans.length === 0) {
+    errors.push('Commit plan is empty or invalid');
+    return { valid: false, errors, warnings };
+  }
+
+  // Check for required fields
+  for (let i = 0; i < plans.length; i++) {
+    const plan = plans[i];
+    
+    if (!plan.date || !(plan.date instanceof Date)) {
+      errors.push(`Plan at index ${i} has invalid date`);
+    }
+    
+    if (typeof plan.count !== 'number' || plan.count < 0) {
+      errors.push(`Plan at index ${i} has invalid commit count`);
+    }
+    
+    if (plan.count > 0 && (!plan.messages || plan.messages.length === 0)) {
+      warnings.push(`Plan at index ${i} has commits but no messages`);
+    }
+    
+    if (plan.count > config.commits.maxPerDay) {
+      warnings.push(
+        `Plan at index ${i} exceeds maxPerDay limit (${plan.count} > ${config.commits.maxPerDay})`
+      );
+    }
+  }
+
+  // Check total volume
+  const totalCommits = plans.reduce((sum, plan) => sum + plan.count, 0);
+  if (totalCommits > 10000) {
+    warnings.push(
+      `Large number of commits planned (${totalCommits}). This may take a long time to execute.`
+    );
+  }
+
+  // Check date ordering
+  for (let i = 1; i < plans.length; i++) {
+    if (plans[i].date < plans[i - 1].date) {
+      errors.push('Commit plan dates are not in chronological order');
+      break;
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
   };
 }

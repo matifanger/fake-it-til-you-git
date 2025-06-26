@@ -13,8 +13,9 @@
     "messageStyle": "default"
   },
   "options": {
-    "dryRun": false,
+    "preview": false,
     "push": false,
-    "verbose": false
+    "verbose": false,
+    "dev": true
   }
 } 

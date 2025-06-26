@@ -9,6 +9,10 @@ jest.mock('chalk', () => ({
     yellow: jest.fn((text: string) => `[YELLOW]${text}[/YELLOW]`),
     cyan: jest.fn((text: string) => `[CYAN]${text}[/CYAN]`),
     red: jest.fn((text: string) => `[RED]${text}[/RED]`),
+    white: jest.fn((text: string) => `[WHITE]${text}[/WHITE]`),
+    dim: jest.fn((text: string) => `[DIM]${text}[/DIM]`),
+    gray: jest.fn((text: string) => `[GRAY]${text}[/GRAY]`),
+    magenta: jest.fn((text: string) => `[MAGENTA]${text}[/MAGENTA]`),
   },
 }));
 
@@ -24,15 +28,27 @@ jest.mock('ora', () => ({
 
 import { main } from '../../src/main.js';
 
+// Mock process.exit to prevent tests from actually exiting
+const originalExit = process.exit;
+let exitCode: number | undefined;
+
 // Mock console.log to capture output
 const originalLog = console.log;
 let logOutput: string[] = [];
 
 beforeEach(() => {
   logOutput = [];
+  exitCode = undefined;
+  
   console.log = jest.fn((...args) => {
     logOutput.push(args.join(' '));
   });
+
+  // Mock process.exit to capture exit codes instead of actually exiting
+  process.exit = jest.fn((code?: number) => {
+    exitCode = code;
+    throw new Error(`Process would exit with code ${code}`);
+  }) as any;
 
   // Clear all mock calls
   jest.clearAllMocks();
@@ -40,12 +56,13 @@ beforeEach(() => {
 
 afterEach(() => {
   console.log = originalLog;
+  process.exit = originalExit;
 });
 
 describe('main function', () => {
   it('should initialize successfully with default options', async () => {
     const options = {
-      dryRun: true,
+      preview: true,
       verbose: false,
     };
 
@@ -54,7 +71,7 @@ describe('main function', () => {
 
   it('should show verbose output when verbose option is true', async () => {
     const options = {
-      dryRun: true,
+      preview: true,
       verbose: true,
       days: '365',
       commits: '10',
@@ -67,16 +84,16 @@ describe('main function', () => {
     expect(verboseOutput).toBeDefined();
   });
 
-  it('should indicate dry run mode when dryRun is true', async () => {
+  it('should indicate preview mode when preview is true', async () => {
     const options = {
-      dryRun: true,
+      preview: true,
       verbose: false,
     };
 
     await main(options);
 
-    // Check if dry run message was shown
-    const dryRunOutput = logOutput.find((line) => line.includes('Dry run mode'));
-    expect(dryRunOutput).toBeDefined();
+    // Check if preview message was shown
+    const previewOutput = logOutput.find((line) => line.includes('Preview mode'));
+    expect(previewOutput).toBeDefined();
   });
 });

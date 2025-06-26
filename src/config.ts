@@ -21,9 +21,10 @@ export interface CommitsConfig {
 }
 
 export interface OptionsConfig {
-  dryRun: boolean;
+  preview: boolean;
   push: boolean;
   verbose: boolean;
+  dev: boolean;
 }
 
 export interface Config {
@@ -51,11 +52,12 @@ export interface CliOptions {
   messageStyle?: string;
   authorName?: string;
   authorEmail?: string;
-  dryRun?: boolean;
+  preview?: boolean;
   config?: string;
   push?: boolean;
   seed?: string;
   verbose?: boolean;
+  dev?: boolean;
 }
 
 /**
@@ -76,9 +78,10 @@ const DEFAULT_CONFIG: Config = {
     messageStyle: 'default',
   },
   options: {
-    dryRun: false,
+    preview: false,
     push: false,
     verbose: false,
+    dev: false,
   },
 };
 
@@ -168,14 +171,15 @@ export function cliOptionsToConfig(cliOptions: CliOptions): PartialConfig {
 
   // Handle options
   if (
-    cliOptions.dryRun !== undefined ||
+    cliOptions.preview !== undefined ||
     cliOptions.push !== undefined ||
-    cliOptions.verbose !== undefined
+    cliOptions.verbose !== undefined ||
+    cliOptions.dev !== undefined
   ) {
     config.options = {};
 
-    if (cliOptions.dryRun !== undefined) {
-      config.options.dryRun = cliOptions.dryRun;
+    if (cliOptions.preview !== undefined) {
+      config.options.preview = cliOptions.preview;
     }
 
     if (cliOptions.push !== undefined) {
@@ -184,6 +188,10 @@ export function cliOptionsToConfig(cliOptions: CliOptions): PartialConfig {
 
     if (cliOptions.verbose !== undefined) {
       config.options.verbose = cliOptions.verbose;
+    }
+
+    if (cliOptions.dev !== undefined) {
+      config.options.dev = cliOptions.dev;
     }
   }
 
@@ -256,9 +264,10 @@ export function applyDefaults(config: PartialConfig): Config {
       messageStyle: mergedConfig.commits?.messageStyle ?? DEFAULT_CONFIG.commits.messageStyle,
     },
     options: {
-      dryRun: mergedConfig.options?.dryRun ?? DEFAULT_CONFIG.options.dryRun,
+      preview: mergedConfig.options?.preview ?? DEFAULT_CONFIG.options.preview,
       push: mergedConfig.options?.push ?? DEFAULT_CONFIG.options.push,
       verbose: mergedConfig.options?.verbose ?? DEFAULT_CONFIG.options.verbose,
+      dev: mergedConfig.options?.dev ?? DEFAULT_CONFIG.options.dev,
     },
     seed: mergedConfig.seed,
   };

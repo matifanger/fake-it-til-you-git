@@ -290,7 +290,7 @@ describe('Validation Utils', () => {
   describe('validateOptions', () => {
     test('should validate correct options configuration', () => {
       const validOptions = {
-        dryRun: true,
+        preview: true,
         push: false,
         verbose: true,
         seed: 'test-seed',
@@ -314,10 +314,10 @@ describe('Validation Utils', () => {
     });
 
     test('should validate individual option types', () => {
-      const optionsWithInvalidDryRun = { dryRun: 'not a boolean' };
-      const result1 = validateOptions(optionsWithInvalidDryRun);
+      const optionsWithInvalidPreview = { preview: 'not a boolean' };
+      const result1 = validateOptions(optionsWithInvalidPreview);
       expect(result1.valid).toBe(false);
-      expect(result1.errors).toContain('dryRun option must be a boolean');
+      expect(result1.errors).toContain('preview option must be a boolean');
 
       const optionsWithInvalidPush = { push: 'not a boolean' };
       const result2 = validateOptions(optionsWithInvalidPush);
@@ -357,7 +357,7 @@ describe('Validation Utils', () => {
         messageStyle: 'default',
       },
       options: {
-        dryRun: false,
+        preview: false,
         push: false,
         verbose: false,
       },
@@ -437,10 +437,11 @@ describe('Validation Utils', () => {
             customMessages: ['  message 1  ', '', '  message 2  '],
           },
           options: {
-            dryRun: true,
+            preview: true,
             push: false,
             verbose: true,
-            seed: '  test-seed  ',
+            dev: false,
+            seed: 'test-seed',
           },
         };
 
