@@ -468,6 +468,7 @@ describe('Config Loader', () => {
         expect(result.options).toEqual({
           ...validConfigContent.options,
           dev: false, // Default value added by the system
+          repositoryPath: '.', // Default value added by the system
         });
         expect(result.seed).toBe(validConfigContent.seed);
         expect((result as any).extraProperty).toBeUndefined();
@@ -487,6 +488,31 @@ describe('Config Loader', () => {
 
       expect(result.options?.verbose).toBe(false);
       expect(result.commits).toBeUndefined();
+    });
+
+    it('should handle repository path from CLI options', async () => {
+      const cliOptions: CliOptions = {
+        repoPath: '/custom/repo/path',
+        commits: '5',
+        preview: true,
+      };
+
+      const result = await loadConfig(cliOptions);
+
+      expect(result.options.repositoryPath).toBe('/custom/repo/path');
+      expect(result.commits.maxPerDay).toBe(5);
+      expect(result.options.preview).toBe(true);
+    });
+
+    it('should use default repository path when not specified', async () => {
+      const cliOptions: CliOptions = {
+        commits: '8',
+      };
+
+      const result = await loadConfig(cliOptions);
+
+      expect(result.options.repositoryPath).toBe('.'); // default
+      expect(result.commits.maxPerDay).toBe(8);
     });
   });
 });

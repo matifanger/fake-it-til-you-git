@@ -35,6 +35,9 @@ ${chalk.cyan('Examples:')}
   ${chalk.dim('# Development mode (use test-repo directory)')}
   fake-it-til-you-git --dev --commits 10 --days 30
 
+  ${chalk.dim('# Use a specific repository path')}
+  fake-it-til-you-git --repo-path /path/to/your/repo --commits 5
+
 ${chalk.cyan('Configuration:')}
   You can use a JSON configuration file to set defaults. CLI arguments will override config file values.
   See test-configs/fake-git.config.json for an example.
@@ -100,6 +103,7 @@ program
   .option('--push', 'Push commits to remote repository after creation', false)
   .option('--seed <string>', 'Random seed for reproducible results (any string)')
   .option('--dev', 'Development mode: use test-repo directory instead of current directory', false)
+  .option('--repo-path <path>', 'Path to the git repository (default: current directory)', '.')
   .option('-v, --verbose', 'Enable verbose output for debugging', false);
 
 // Validation functions

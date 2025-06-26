@@ -277,6 +277,7 @@ describe('Commit Distribution Algorithms', () => {
         push: false,
         verbose: false,
         dev: true,
+        repositoryPath: '.',
       },
       seed: 'test-seed',
     };

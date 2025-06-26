@@ -16,6 +16,7 @@
     "preview": false,
     "push": false,
     "verbose": false,
-    "dev": true
+    "dev": true,
+    "repositoryPath": "."
   }
 } 

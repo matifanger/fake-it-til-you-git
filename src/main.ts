@@ -99,7 +99,16 @@ export async function main(options: CliOptions): Promise<void> {
     // Initialize Git operations with proper directory handling
     spinner.start('Initializing Git operations...');
     const isDevelopmentMode = config.options.dev || process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
-    const gitOps = new GitOperations(isDevelopmentMode ? join(process.cwd(), 'test-repo') : undefined);
+    
+    // Determine repository path: dev mode > repositoryPath > current directory
+    let targetRepoPath: string | undefined;
+    if (isDevelopmentMode) {
+      targetRepoPath = join(process.cwd(), 'test-repo');
+    } else if (config.options.repositoryPath !== '.') {
+      targetRepoPath = config.options.repositoryPath;
+    }
+    
+    const gitOps = new GitOperations(targetRepoPath);
     globalGitOps = gitOps; // Store for cleanup
     const repoPath = gitOps.getRepositoryPath();
     
@@ -109,6 +118,8 @@ export async function main(options: CliOptions): Promise<void> {
 
     if (isDevelopmentMode) {
       console.log(chalk.yellow(`🔧 Development mode: Using test-repo directory`));
+    } else if (config.options.repositoryPath !== '.') {
+      console.log(chalk.blue(`📂 Using custom repository path: ${config.options.repositoryPath}`));
     }
 
     // Check if it's a Git repository
