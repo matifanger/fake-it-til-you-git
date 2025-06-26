@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterEach, jest } from '@jest/globals';
+import { afterEach, beforeEach, describe, expect, it, jest } from '@jest/globals';
 
 // Mock chalk and ora before importing main
 jest.mock('chalk', () => ({
@@ -9,7 +9,7 @@ jest.mock('chalk', () => ({
     yellow: jest.fn((text: string) => `[YELLOW]${text}[/YELLOW]`),
     cyan: jest.fn((text: string) => `[CYAN]${text}[/CYAN]`),
     red: jest.fn((text: string) => `[RED]${text}[/RED]`),
-  }
+  },
 }));
 
 jest.mock('ora', () => ({
@@ -19,7 +19,7 @@ jest.mock('ora', () => ({
     succeed: jest.fn().mockReturnThis(),
     fail: jest.fn().mockReturnThis(),
     text: text,
-  }))
+  })),
 }));
 
 import { main } from '../../src/main.js';
@@ -33,7 +33,7 @@ beforeEach(() => {
   console.log = jest.fn((...args) => {
     logOutput.push(args.join(' '));
   });
-  
+
   // Clear all mock calls
   jest.clearAllMocks();
 });
@@ -46,7 +46,7 @@ describe('main function', () => {
   it('should initialize successfully with default options', async () => {
     const options = {
       dryRun: true,
-      verbose: false
+      verbose: false,
     };
 
     await expect(main(options)).resolves.not.toThrow();
@@ -57,26 +57,26 @@ describe('main function', () => {
       dryRun: true,
       verbose: true,
       days: '365',
-      commits: '10'
+      commits: '10',
     };
 
     await main(options);
-    
+
     // Check if CLI options were logged
-    const verboseOutput = logOutput.find(line => line.includes('CLI Options:'));
+    const verboseOutput = logOutput.find((line) => line.includes('CLI Options:'));
     expect(verboseOutput).toBeDefined();
   });
 
   it('should indicate dry run mode when dryRun is true', async () => {
     const options = {
       dryRun: true,
-      verbose: false
+      verbose: false,
     };
 
     await main(options);
-    
+
     // Check if dry run message was shown
-    const dryRunOutput = logOutput.find(line => line.includes('Dry run mode'));
+    const dryRunOutput = logOutput.find((line) => line.includes('Dry run mode'));
     expect(dryRunOutput).toBeDefined();
   });
-}); 
+});

@@ -1,15 +1,15 @@
-import { writeFileSync, mkdirSync, rmSync } from 'fs';
+import { mkdirSync, rmSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import {
-  loadMessagesFromFile,
-  loadDefaultMessages,
-  getMessagesByStyle,
+  type MessageStyle,
   generateRandomMessage,
-  validateCustomMessages,
+  getMessageStats,
+  getMessagesByStyle,
+  loadDefaultMessages,
+  loadMessagesFromFile,
   sanitizeMessage,
   sanitizeMessages,
-  getMessageStats,
-  type MessageStyle
+  validateCustomMessages,
 } from '../../src/utils/messages';
 
 describe('Messages Utilities', () => {
@@ -43,7 +43,7 @@ describe('Messages Utilities', () => {
         '',
         '   ',
         'Test message 3',
-        'Test message 4'
+        'Test message 4',
       ].join('\n');
       writeFileSync(tempMessagesFile, testMessages);
     });
@@ -54,7 +54,7 @@ describe('Messages Utilities', () => {
         'Test message 1',
         'Test message 2',
         'Test message 3',
-        'Test message 4'
+        'Test message 4',
       ]);
     });
 
@@ -139,9 +139,9 @@ describe('Messages Utilities', () => {
 
     it('should use custom messages when provided', () => {
       const customMessages = ['Custom test message'];
-      const message = generateRandomMessage({ 
-        style: 'default', 
-        customMessages 
+      const message = generateRandomMessage({
+        style: 'default',
+        customMessages,
       });
       expect(message).toBe('Custom test message');
     });
@@ -157,16 +157,16 @@ describe('Messages Utilities', () => {
       // Test multiple times to reduce chance of false failure
       const results1: string[] = [];
       const results2: string[] = [];
-      
+
       for (let i = 0; i < 10; i++) {
         results1.push(generateRandomMessage({ style: 'lorem', seed: 'seed1' }));
         results2.push(generateRandomMessage({ style: 'lorem', seed: 'seed2' }));
       }
-      
+
       // All results with same seed should be identical
-      expect(results1.every(msg => msg === results1[0])).toBe(true);
-      expect(results2.every(msg => msg === results2[0])).toBe(true);
-      
+      expect(results1.every((msg) => msg === results1[0])).toBe(true);
+      expect(results2.every((msg) => msg === results2[0])).toBe(true);
+
       // Different seeds should produce different results (at least statistically)
       expect(results1[0]).not.toBe(results2[0]);
     });
@@ -175,7 +175,7 @@ describe('Messages Utilities', () => {
       const message = generateRandomMessage({ style: 'default', customMessages: [] });
       expect(typeof message).toBe('string');
       expect(message.length).toBeGreaterThan(0);
-      
+
       // Should use default messages, not throw an error
       const defaultMessages = loadDefaultMessages();
       expect(defaultMessages).toContain(message);
@@ -206,14 +206,16 @@ describe('Messages Utilities', () => {
       const messages = ['Valid message', 123, 'Another valid message'] as any;
       const result = validateCustomMessages(messages);
       expect(result.valid).toBe(false);
-      expect(result.errors.some(error => error.includes('must be a string'))).toBe(true);
+      expect(result.errors.some((error) => error.includes('must be a string'))).toBe(true);
     });
 
     it('should reject empty or whitespace-only messages', () => {
       const messages = ['Valid message', '', '   ', 'Another valid message'];
       const result = validateCustomMessages(messages);
       expect(result.valid).toBe(false);
-      expect(result.errors.some(error => error.includes('cannot be empty or whitespace only'))).toBe(true);
+      expect(
+        result.errors.some((error) => error.includes('cannot be empty or whitespace only'))
+      ).toBe(true);
     });
 
     it('should reject messages that are too long', () => {
@@ -221,21 +223,23 @@ describe('Messages Utilities', () => {
       const messages = ['Valid message', longMessage];
       const result = validateCustomMessages(messages);
       expect(result.valid).toBe(false);
-      expect(result.errors.some(error => error.includes('is too long'))).toBe(true);
+      expect(result.errors.some((error) => error.includes('is too long'))).toBe(true);
     });
 
     it('should reject messages with line breaks', () => {
       const messages = ['Valid message', 'Message\nwith\nbreaks'];
       const result = validateCustomMessages(messages);
       expect(result.valid).toBe(false);
-      expect(result.errors.some(error => error.includes('contains line breaks'))).toBe(true);
+      expect(result.errors.some((error) => error.includes('contains line breaks'))).toBe(true);
     });
 
     it('should reject messages with leading or trailing spaces', () => {
       const messages = ['Valid message', ' Leading space', 'Trailing space '];
       const result = validateCustomMessages(messages);
       expect(result.valid).toBe(false);
-      expect(result.errors.some(error => error.includes('leading or trailing spaces'))).toBe(true);
+      expect(result.errors.some((error) => error.includes('leading or trailing spaces'))).toBe(
+        true
+      );
     });
   });
 
@@ -272,14 +276,14 @@ describe('Messages Utilities', () => {
         'multiple    spaces',
         '',
         '   ',
-        'normal message'
+        'normal message',
       ];
       const sanitized = sanitizeMessages(messages);
       expect(sanitized).toEqual([
         'message 1',
         'message with breaks',
         'multiple spaces',
-        'normal message'
+        'normal message',
       ]);
     });
 
@@ -311,7 +315,7 @@ describe('Messages Utilities', () => {
       const stats = getMessageStats('emoji');
       expect(stats.style).toBe('emoji');
       expect(stats.totalMessages).toBeGreaterThan(20); // We know emoji has 30+ messages
-      expect(stats.sampleMessages.some(msg => msg.includes('🐛'))).toBe(true);
+      expect(stats.sampleMessages.some((msg) => msg.includes('🐛'))).toBe(true);
     });
 
     it('should handle custom messages', () => {
@@ -327,4 +331,4 @@ describe('Messages Utilities', () => {
       expect(stats.sampleMessages.length).toBe(5);
     });
   });
-}); 
+});

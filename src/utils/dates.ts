@@ -21,17 +21,13 @@ export function parseDate(dateString: string): Date | null {
 
   // Split the date into components
   const [year, month, day] = dateString.split('-').map(Number);
-  
+
   // Create date (month - 1 because Date uses 0-based months)
   const date = new Date(year, month - 1, day);
-  
+
   // Verify that the created date matches the given values
   // This catches cases like 2023-02-30 that JavaScript would automatically convert
-  if (
-    date.getFullYear() !== year ||
-    date.getMonth() !== month - 1 ||
-    date.getDate() !== day
-  ) {
+  if (date.getFullYear() !== year || date.getMonth() !== month - 1 || date.getDate() !== day) {
     return null;
   }
 
@@ -56,7 +52,7 @@ export function isValidDate(dateString: string): boolean {
 export function generateDateRange(startDate: Date, endDate: Date): Date[] {
   const dates: Date[] = [];
   const currentDate = new Date(startDate);
-  
+
   // Ensure that the start date is not greater than the end date
   if (startDate > endDate) {
     throw new Error('Start date cannot be greater than end date');
@@ -107,10 +103,7 @@ export function daysBetween(startDate: Date, endDate: Date): number {
  * @param endDateString End date in YYYY-MM-DD format
  * @returns Number of days or null if any date is invalid
  */
-export function daysBetweenStrings(
-  startDateString: string,
-  endDateString: string
-): number | null {
+export function daysBetweenStrings(startDateString: string, endDateString: string): number | null {
   const startDate = parseDate(startDateString);
   const endDate = parseDate(endDateString);
 
@@ -159,11 +152,7 @@ export function getDaysAgo(days: number): string {
  * @param maxDate Maximum allowed date (optional)
  * @returns true if the date is in range, false otherwise
  */
-export function isDateInRange(
-  dateString: string,
-  minDate?: string,
-  maxDate?: string
-): boolean {
+export function isDateInRange(dateString: string, minDate?: string, maxDate?: string): boolean {
   const date = parseDate(dateString);
   if (!date) return false;
 
@@ -178,4 +167,4 @@ export function isDateInRange(
   }
 
   return true;
-} 
+}

@@ -1,5 +1,5 @@
-import { readFile } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
+import { readFile } from 'node:fs/promises';
 import { resolve } from 'node:path';
 import { validateConfig } from './utils/validation.js';
 
@@ -64,22 +64,22 @@ export interface CliOptions {
 const DEFAULT_CONFIG: Config = {
   author: {
     name: 'Fake Git User',
-    email: 'fake@example.com'
+    email: 'fake@example.com',
   },
   dateRange: {
     startDate: new Date(Date.now() - 365 * 24 * 60 * 60 * 1000).toISOString().split('T')[0],
-    endDate: new Date().toISOString().split('T')[0]
+    endDate: new Date().toISOString().split('T')[0],
   },
   commits: {
     maxPerDay: 10,
     distribution: 'random',
-    messageStyle: 'default'
+    messageStyle: 'default',
   },
   options: {
     dryRun: false,
     push: false,
-    verbose: false
-  }
+    verbose: false,
+  },
 };
 
 /**
@@ -90,20 +90,22 @@ const DEFAULT_CONFIG: Config = {
 export async function loadConfigFromFile(configPath: string): Promise<PartialConfig | null> {
   try {
     const resolvedPath = resolve(configPath);
-    
+
     if (!existsSync(resolvedPath)) {
       return null;
     }
 
     const fileContent = await readFile(resolvedPath, 'utf-8');
     const parsedConfig = JSON.parse(fileContent);
-    
+
     return parsedConfig;
   } catch (error) {
     if (error instanceof SyntaxError) {
       throw new Error(`Invalid JSON in config file: ${configPath}. ${error.message}`);
     }
-    throw new Error(`Failed to load config file: ${configPath}. ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Failed to load config file: ${configPath}. ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
 }
 
@@ -118,11 +120,11 @@ export function cliOptionsToConfig(cliOptions: CliOptions): PartialConfig {
   // Handle author configuration
   if (cliOptions.authorName || cliOptions.authorEmail) {
     config.author = {};
-    
+
     if (cliOptions.authorName) {
       config.author.name = cliOptions.authorName;
     }
-    
+
     if (cliOptions.authorEmail) {
       config.author.email = cliOptions.authorEmail;
     }
@@ -131,11 +133,11 @@ export function cliOptionsToConfig(cliOptions: CliOptions): PartialConfig {
   // Handle date range
   if (cliOptions.startDate || cliOptions.endDate || cliOptions.days) {
     config.dateRange = {};
-    
+
     if (cliOptions.startDate) {
       config.dateRange.startDate = cliOptions.startDate;
     }
-    
+
     if (cliOptions.endDate) {
       config.dateRange.endDate = cliOptions.endDate;
     } else if (cliOptions.days && !cliOptions.startDate) {
@@ -150,32 +152,36 @@ export function cliOptionsToConfig(cliOptions: CliOptions): PartialConfig {
   // Handle commits configuration
   if (cliOptions.commits || cliOptions.distribution || cliOptions.messageStyle) {
     config.commits = {};
-    
+
     if (cliOptions.commits) {
       config.commits.maxPerDay = Number.parseInt(cliOptions.commits, 10);
     }
-    
+
     if (cliOptions.distribution) {
       config.commits.distribution = cliOptions.distribution as CommitsConfig['distribution'];
     }
-    
+
     if (cliOptions.messageStyle) {
       config.commits.messageStyle = cliOptions.messageStyle as CommitsConfig['messageStyle'];
     }
   }
 
   // Handle options
-  if (cliOptions.dryRun !== undefined || cliOptions.push !== undefined || cliOptions.verbose !== undefined) {
+  if (
+    cliOptions.dryRun !== undefined ||
+    cliOptions.push !== undefined ||
+    cliOptions.verbose !== undefined
+  ) {
     config.options = {};
-    
+
     if (cliOptions.dryRun !== undefined) {
       config.options.dryRun = cliOptions.dryRun;
     }
-    
+
     if (cliOptions.push !== undefined) {
       config.options.push = cliOptions.push;
     }
-    
+
     if (cliOptions.verbose !== undefined) {
       config.options.verbose = cliOptions.verbose;
     }
@@ -205,8 +211,8 @@ function deepMergeConfig(target: PartialConfig, source: PartialConfig): PartialC
     if (sourceValue !== undefined) {
       if (typeof sourceValue === 'object' && sourceValue !== null && !Array.isArray(sourceValue)) {
         result[key as keyof PartialConfig] = {
-          ...targetValue as object,
-          ...sourceValue
+          ...(targetValue as object),
+          ...sourceValue,
         } as any;
       } else {
         result[key as keyof PartialConfig] = sourceValue as any;
@@ -224,34 +230,37 @@ function deepMergeConfig(target: PartialConfig, source: PartialConfig): PartialC
  */
 export function applyDefaults(config: PartialConfig): Config {
   // Deep merge with defaults
-  const mergedConfig = deepMergeConfig({
-    author: DEFAULT_CONFIG.author,
-    dateRange: DEFAULT_CONFIG.dateRange,
-    commits: DEFAULT_CONFIG.commits,
-    options: DEFAULT_CONFIG.options,
-    seed: DEFAULT_CONFIG.seed
-  }, config);
+  const mergedConfig = deepMergeConfig(
+    {
+      author: DEFAULT_CONFIG.author,
+      dateRange: DEFAULT_CONFIG.dateRange,
+      commits: DEFAULT_CONFIG.commits,
+      options: DEFAULT_CONFIG.options,
+      seed: DEFAULT_CONFIG.seed,
+    },
+    config
+  );
 
   return {
     author: {
       name: mergedConfig.author?.name ?? DEFAULT_CONFIG.author.name,
-      email: mergedConfig.author?.email ?? DEFAULT_CONFIG.author.email
+      email: mergedConfig.author?.email ?? DEFAULT_CONFIG.author.email,
     },
     dateRange: {
       startDate: mergedConfig.dateRange?.startDate ?? DEFAULT_CONFIG.dateRange.startDate,
-      endDate: mergedConfig.dateRange?.endDate ?? DEFAULT_CONFIG.dateRange.endDate
+      endDate: mergedConfig.dateRange?.endDate ?? DEFAULT_CONFIG.dateRange.endDate,
     },
     commits: {
       maxPerDay: mergedConfig.commits?.maxPerDay ?? DEFAULT_CONFIG.commits.maxPerDay,
       distribution: mergedConfig.commits?.distribution ?? DEFAULT_CONFIG.commits.distribution,
-      messageStyle: mergedConfig.commits?.messageStyle ?? DEFAULT_CONFIG.commits.messageStyle
+      messageStyle: mergedConfig.commits?.messageStyle ?? DEFAULT_CONFIG.commits.messageStyle,
     },
     options: {
       dryRun: mergedConfig.options?.dryRun ?? DEFAULT_CONFIG.options.dryRun,
       push: mergedConfig.options?.push ?? DEFAULT_CONFIG.options.push,
-      verbose: mergedConfig.options?.verbose ?? DEFAULT_CONFIG.options.verbose
+      verbose: mergedConfig.options?.verbose ?? DEFAULT_CONFIG.options.verbose,
     },
-    seed: mergedConfig.seed
+    seed: mergedConfig.seed,
   };
 }
 
@@ -262,10 +271,10 @@ export function applyDefaults(config: PartialConfig): Config {
  */
 export async function loadConfig(cliOptions: CliOptions): Promise<Config> {
   let fileConfig: PartialConfig = {};
-  
+
   // Load from config file if specified
   const configPath = cliOptions.config || './test-configs/fake-git.config.json';
-  
+
   try {
     const loadedConfig = await loadConfigFromFile(configPath);
     if (loadedConfig) {
@@ -286,8 +295,8 @@ export async function loadConfig(cliOptions: CliOptions): Promise<Config> {
   const cliConfig = cliOptionsToConfig(cliOptions);
 
   // Merge configurations: defaults < file < CLI
-  let mergedConfig = deepMergeConfig(fileConfig, cliConfig);
-  
+  const mergedConfig = deepMergeConfig(fileConfig, cliConfig);
+
   // Apply defaults to any missing values
   const finalConfig = applyDefaults(mergedConfig);
 
@@ -306,4 +315,4 @@ export async function loadConfig(cliOptions: CliOptions): Promise<Config> {
  */
 export function getDefaultConfig(): Config {
   return { ...DEFAULT_CONFIG };
-} 
+}

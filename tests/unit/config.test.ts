@@ -1,17 +1,17 @@
-import { describe, it, expect, beforeEach, afterEach } from '@jest/globals';
-import { writeFile, unlink, mkdir, rm } from 'node:fs/promises';
 import { existsSync } from 'node:fs';
-import { join } from 'node:path';
+import { mkdir, rm, unlink, writeFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
-import { 
-  loadConfigFromFile, 
-  cliOptionsToConfig, 
-  applyDefaults, 
-  loadConfig,
-  getDefaultConfig,
-  type Config,
+import { join } from 'node:path';
+import { afterEach, beforeEach, describe, expect, it } from '@jest/globals';
+import {
   type CliOptions,
-  type PartialConfig
+  type Config,
+  type PartialConfig,
+  applyDefaults,
+  cliOptionsToConfig,
+  getDefaultConfig,
+  loadConfig,
+  loadConfigFromFile,
 } from '../../src/config.js';
 
 describe('Config Loader', () => {
@@ -24,23 +24,23 @@ describe('Config Loader', () => {
   const validConfigContent = {
     author: {
       name: 'Test User',
-      email: 'test@example.com'
+      email: 'test@example.com',
     },
     dateRange: {
       startDate: '2023-01-01',
-      endDate: '2023-12-31'
+      endDate: '2023-12-31',
     },
     commits: {
       maxPerDay: 5,
       distribution: 'gaussian' as const,
-      messageStyle: 'emoji' as const
+      messageStyle: 'emoji' as const,
     },
     options: {
       dryRun: true,
       push: false,
-      verbose: true
+      verbose: true,
     },
-    seed: 'test-seed'
+    seed: 'test-seed',
   };
 
   const invalidJsonContent = '{ "author": { "name": "Test", "email": }';
@@ -58,7 +58,7 @@ describe('Config Loader', () => {
   afterEach(async () => {
     // Restore original working directory
     process.chdir(originalCwd);
-    
+
     // Clean up test directory
     try {
       await rm(testDir, { recursive: true, force: true });
@@ -79,9 +79,9 @@ describe('Config Loader', () => {
     });
 
     it('should throw error for invalid JSON', async () => {
-      await expect(loadConfigFromFile(invalidConfigPath))
-        .rejects
-        .toThrow(/Invalid JSON in config file/);
+      await expect(loadConfigFromFile(invalidConfigPath)).rejects.toThrow(
+        /Invalid JSON in config file/
+      );
     });
 
     it('should resolve relative paths correctly', async () => {
@@ -99,7 +99,7 @@ describe('Config Loader', () => {
         messageStyle: 'lorem',
         dryRun: true,
         verbose: false,
-        seed: 'cli-seed'
+        seed: 'cli-seed',
       };
 
       const result = cliOptionsToConfig(cliOptions);
@@ -108,20 +108,20 @@ describe('Config Loader', () => {
         commits: {
           maxPerDay: 15,
           distribution: 'uniform',
-          messageStyle: 'lorem'
+          messageStyle: 'lorem',
         },
         options: {
           dryRun: true,
-          verbose: false
+          verbose: false,
         },
-        seed: 'cli-seed'
+        seed: 'cli-seed',
       });
     });
 
     it('should handle date range options correctly', () => {
       const cliOptions: CliOptions = {
         startDate: '2023-06-01',
-        endDate: '2023-06-30'
+        endDate: '2023-06-30',
       };
 
       const result = cliOptionsToConfig(cliOptions);
@@ -129,14 +129,14 @@ describe('Config Loader', () => {
       expect(result).toEqual({
         dateRange: {
           startDate: '2023-06-01',
-          endDate: '2023-06-30'
-        }
+          endDate: '2023-06-30',
+        },
       });
     });
 
     it('should calculate date range from days option', () => {
       const cliOptions: CliOptions = {
-        days: '30'
+        days: '30',
       };
 
       const result = cliOptionsToConfig(cliOptions);
@@ -144,12 +144,12 @@ describe('Config Loader', () => {
       expect(result.dateRange).toBeDefined();
       expect(result.dateRange?.startDate).toBeDefined();
       expect(result.dateRange?.endDate).toBeDefined();
-      
+
       // Verify the date range spans approximately 30 days
       const startDate = new Date(result.dateRange!.startDate!);
       const endDate = new Date(result.dateRange!.endDate!);
       const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      
+
       expect(daysDiff).toBeGreaterThanOrEqual(29);
       expect(daysDiff).toBeLessThanOrEqual(31);
     });
@@ -162,7 +162,7 @@ describe('Config Loader', () => {
     it('should convert author CLI options to config format', () => {
       const cliOptions: CliOptions = {
         authorName: 'John Doe',
-        authorEmail: 'john@example.com'
+        authorEmail: 'john@example.com',
       };
 
       const result = cliOptionsToConfig(cliOptions);
@@ -170,50 +170,50 @@ describe('Config Loader', () => {
       expect(result).toEqual({
         author: {
           name: 'John Doe',
-          email: 'john@example.com'
-        }
+          email: 'john@example.com',
+        },
       });
     });
 
     it('should handle partial author options', () => {
       const cliOptionsNameOnly: CliOptions = {
-        authorName: 'Jane Smith'
+        authorName: 'Jane Smith',
       };
 
       const result1 = cliOptionsToConfig(cliOptionsNameOnly);
       expect(result1).toEqual({
         author: {
-          name: 'Jane Smith'
-        }
+          name: 'Jane Smith',
+        },
       });
 
       const cliOptionsEmailOnly: CliOptions = {
-        authorEmail: 'jane@example.com'
+        authorEmail: 'jane@example.com',
       };
 
       const result2 = cliOptionsToConfig(cliOptionsEmailOnly);
       expect(result2).toEqual({
         author: {
-          email: 'jane@example.com'
-        }
+          email: 'jane@example.com',
+        },
       });
     });
 
     it('should handle partial options correctly', () => {
       const cliOptions: CliOptions = {
         push: true,
-        distribution: 'random'
+        distribution: 'random',
       };
 
       const result = cliOptionsToConfig(cliOptions);
 
       expect(result).toEqual({
         commits: {
-          distribution: 'random'
+          distribution: 'random',
         },
         options: {
-          push: true
-        }
+          push: true,
+        },
       });
     });
   });
@@ -222,7 +222,7 @@ describe('Config Loader', () => {
     it('should apply all defaults to empty config', () => {
       const result = applyDefaults({});
       const defaultConfig = getDefaultConfig();
-      
+
       expect(result.author).toEqual(defaultConfig.author);
       expect(result.commits).toEqual(defaultConfig.commits);
       expect(result.options).toEqual(defaultConfig.options);
@@ -233,11 +233,11 @@ describe('Config Loader', () => {
     it('should preserve provided values and fill missing ones', () => {
       const partialConfig: PartialConfig = {
         author: {
-          name: 'Custom User'
+          name: 'Custom User',
         },
         commits: {
-          maxPerDay: 20
-        }
+          maxPerDay: 20,
+        },
       };
 
       const result = applyDefaults(partialConfig);
@@ -252,8 +252,8 @@ describe('Config Loader', () => {
     it('should handle nested partial objects correctly', () => {
       const partialConfig: PartialConfig = {
         options: {
-          dryRun: true
-        }
+          dryRun: true,
+        },
       };
 
       const result = applyDefaults(partialConfig);
@@ -265,7 +265,7 @@ describe('Config Loader', () => {
 
     it('should preserve seed when provided', () => {
       const partialConfig: PartialConfig = {
-        seed: 'custom-seed'
+        seed: 'custom-seed',
       };
 
       const result = applyDefaults(partialConfig);
@@ -279,7 +279,7 @@ describe('Config Loader', () => {
       const cliOptions: CliOptions = {
         config: validConfigPath,
         commits: '25', // Override file value
-        push: true    // Override file value
+        push: true, // Override file value
       };
 
       const result = await loadConfig(cliOptions);
@@ -299,7 +299,7 @@ describe('Config Loader', () => {
         commits: '10',
         distribution: 'uniform',
         messageStyle: 'default',
-        dryRun: true
+        dryRun: true,
       };
 
       const result = await loadConfig(cliOptions);
@@ -314,12 +314,12 @@ describe('Config Loader', () => {
 
     it('should handle non-existent config file gracefully when not explicitly specified', async () => {
       const cliOptions: CliOptions = {
-        commits: '5'
+        commits: '5',
       };
 
       // Should not throw when default config file doesn't exist
       const result = await loadConfig(cliOptions);
-      
+
       expect(result.commits.maxPerDay).toBe(5);
       expect(result.author.name).toBe('Fake Git User'); // default
     });
@@ -327,19 +327,17 @@ describe('Config Loader', () => {
     it('should throw error when explicitly specified config file does not exist', async () => {
       const cliOptions: CliOptions = {
         config: nonExistentConfigPath,
-        commits: '5'
+        commits: '5',
       };
 
       // Should throw error when config file is explicitly specified but doesn't exist
-      await expect(loadConfig(cliOptions))
-        .rejects
-        .toThrow();
+      await expect(loadConfig(cliOptions)).rejects.toThrow();
     });
 
     it('should use default config path when not specified', async () => {
       const cliOptions: CliOptions = {
         commits: '8',
-        dryRun: true
+        dryRun: true,
       };
 
       const result = await loadConfig(cliOptions);
@@ -351,32 +349,28 @@ describe('Config Loader', () => {
 
     it('should throw error for invalid config file when explicitly specified', async () => {
       const cliOptions: CliOptions = {
-        config: invalidConfigPath
+        config: invalidConfigPath,
       };
 
-      await expect(loadConfig(cliOptions))
-        .rejects
-        .toThrow(/Invalid JSON in config file/);
+      await expect(loadConfig(cliOptions)).rejects.toThrow(/Invalid JSON in config file/);
     });
 
     it('should validate final configuration', async () => {
       const cliOptions: CliOptions = {
         commits: 'invalid-number' as any,
-        startDate: 'invalid-date'
+        startDate: 'invalid-date',
       };
 
-      await expect(loadConfig(cliOptions))
-        .rejects
-        .toThrow(/Configuration validation failed/);
+      await expect(loadConfig(cliOptions)).rejects.toThrow(/Configuration validation failed/);
     });
 
     it('should handle complex merging scenarios', async () => {
       const cliOptions: CliOptions = {
         config: validConfigPath,
         startDate: '2023-06-01', // Override file
-        commits: '30',           // Override file
-        verbose: false,          // Override file
-        seed: 'cli-seed'        // Override file
+        commits: '30', // Override file
+        verbose: false, // Override file
+        seed: 'cli-seed', // Override file
       };
 
       const result = await loadConfig(cliOptions);
@@ -428,8 +422,8 @@ describe('Config Loader', () => {
       const partialConfigContent = {
         author: {
           name: 'Partial User',
-          email: 'partial@example.com'
-        }
+          email: 'partial@example.com',
+        },
       };
 
       const partialConfigPath = join(testDir, 'partial-config.json');
@@ -437,7 +431,7 @@ describe('Config Loader', () => {
 
       try {
         const cliOptions: CliOptions = {
-          config: partialConfigPath
+          config: partialConfigPath,
         };
 
         const result = await loadConfig(cliOptions);
@@ -455,8 +449,8 @@ describe('Config Loader', () => {
         ...validConfigContent,
         extraProperty: 'should be ignored',
         nested: {
-          extra: 'property'
-        }
+          extra: 'property',
+        },
       };
 
       const extrasConfigPath = join(testDir, 'extras-config.json');
@@ -464,7 +458,7 @@ describe('Config Loader', () => {
 
       try {
         const cliOptions: CliOptions = {
-          config: extrasConfigPath
+          config: extrasConfigPath,
         };
 
         const result = await loadConfig(cliOptions);
@@ -483,7 +477,7 @@ describe('Config Loader', () => {
       const cliOptions: CliOptions = {
         commits: undefined,
         dryRun: undefined,
-        verbose: false
+        verbose: false,
       };
 
       const result = cliOptionsToConfig(cliOptions);
@@ -492,4 +486,4 @@ describe('Config Loader', () => {
       expect(result.commits).toBeUndefined();
     });
   });
-}); 
+});

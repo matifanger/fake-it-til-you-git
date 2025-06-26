@@ -1,15 +1,15 @@
 import {
-  parseDate,
-  isValidDate,
-  generateDateRange,
-  generateDateRangeFromStrings,
+  type DateRange,
   daysBetween,
   daysBetweenStrings,
   formatDate,
-  getTodayString,
+  generateDateRange,
+  generateDateRangeFromStrings,
   getDaysAgo,
+  getTodayString,
   isDateInRange,
-  type DateRange
+  isValidDate,
+  parseDate,
 } from '../../src/utils/dates';
 
 describe('Date Utilities', () => {
@@ -68,9 +68,9 @@ describe('Date Utilities', () => {
   describe('generateDateRange', () => {
     test('should generate correct date range', () => {
       const start = new Date(2023, 11, 20); // December 20, 2023
-      const end = new Date(2023, 11, 25);   // December 25, 2023
+      const end = new Date(2023, 11, 25); // December 25, 2023
       const range = generateDateRange(start, end);
-      
+
       expect(range).toHaveLength(6); // 6 days inclusive
       expect(range[0]).toEqual(start);
       expect(range[range.length - 1]).toEqual(end);
@@ -79,7 +79,7 @@ describe('Date Utilities', () => {
     test('should generate single day range', () => {
       const date = new Date(2023, 11, 25);
       const range = generateDateRange(date, date);
-      
+
       expect(range).toHaveLength(1);
       expect(range[0]).toEqual(date);
     });
@@ -87,15 +87,17 @@ describe('Date Utilities', () => {
     test('should throw error for invalid range', () => {
       const start = new Date(2023, 11, 25);
       const end = new Date(2023, 11, 20);
-      
-      expect(() => generateDateRange(start, end)).toThrow('Start date cannot be greater than end date');
+
+      expect(() => generateDateRange(start, end)).toThrow(
+        'Start date cannot be greater than end date'
+      );
     });
   });
 
   describe('generateDateRangeFromStrings', () => {
     test('should generate correct date range from strings', () => {
       const range = generateDateRangeFromStrings('2023-12-20', '2023-12-25');
-      
+
       expect(range).toHaveLength(6);
       expect(range?.[0]).toEqual(new Date(2023, 11, 20));
       expect(range?.[range.length - 1]).toEqual(new Date(2023, 11, 25));
@@ -111,20 +113,20 @@ describe('Date Utilities', () => {
     test('should calculate days between dates correctly', () => {
       const start = new Date(2023, 11, 20);
       const end = new Date(2023, 11, 25);
-      
+
       expect(daysBetween(start, end)).toBe(5);
     });
 
     test('should handle negative differences', () => {
       const start = new Date(2023, 11, 25);
       const end = new Date(2023, 11, 20);
-      
+
       expect(daysBetween(start, end)).toBe(-5);
     });
 
     test('should handle same date', () => {
       const date = new Date(2023, 11, 25);
-      
+
       expect(daysBetween(date, date)).toBe(0);
     });
   });
@@ -156,7 +158,7 @@ describe('Date Utilities', () => {
     test('should return today in correct format', () => {
       const today = getTodayString();
       expect(today).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      
+
       // Verify it's actually today
       const parsedToday = parseDate(today);
       const actualToday = new Date();
@@ -168,11 +170,11 @@ describe('Date Utilities', () => {
     test('should return correct date N days ago', () => {
       const daysAgo = getDaysAgo(7);
       expect(daysAgo).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      
+
       const parsedDate = parseDate(daysAgo);
       const expectedDate = new Date();
       expectedDate.setDate(expectedDate.getDate() - 7);
-      
+
       expect(parsedDate?.toDateString()).toBe(expectedDate.toDateString());
     });
   });
@@ -210,4 +212,4 @@ describe('Date Utilities', () => {
       expect(isDateInRange('2023-12-20', '2023-12-15', 'invalid')).toBe(false);
     });
   });
-}); 
+});

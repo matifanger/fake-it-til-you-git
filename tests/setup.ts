@@ -11,4 +11,4 @@ global.console = {
 };
 
 // Set up any global test configuration here
-export {}; 
+export {};

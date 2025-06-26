@@ -10,7 +10,7 @@ function runCLI(args: string[]): Promise<{ code: number; stdout: string; stderr:
   return new Promise((resolve) => {
     const child = spawn('node', [CLI_PATH, ...args], {
       stdio: 'pipe',
-      env: { ...process.env, NODE_ENV: 'test' }
+      env: { ...process.env, NODE_ENV: 'test' },
     });
 
     let stdout = '';
@@ -31,7 +31,6 @@ function runCLI(args: string[]): Promise<{ code: number; stdout: string; stderr:
 }
 
 describe('CLI Enhanced Functionality (Step 3.2)', () => {
-  
   describe('Help and Version', () => {
     test('should display version', async () => {
       const result = await runCLI(['--version']);
@@ -42,13 +41,13 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
     test('should display help with examples and detailed descriptions', async () => {
       const result = await runCLI(['--help']);
       expect(result.code).toBe(0);
-      
+
       // Check for enhanced help content
       expect(result.stdout).toContain('Examples:');
       expect(result.stdout).toContain('Configuration:');
       expect(result.stdout).toContain('Distribution Types:');
       expect(result.stdout).toContain('Message Styles:');
-      
+
       // Check for detailed option descriptions
       expect(result.stdout).toContain('Maximum commits per day (1-100, default: 10)');
       expect(result.stdout).toContain('Start date in YYYY-MM-DD format');
@@ -149,15 +148,14 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
       // Cannot use days with end-date
       const result2 = await runCLI(['--days', '30', '--end-date', '2023-01-01']);
       expect(result2.code).toBe(1);
-      expect(result2.stderr).toContain('Cannot use --days option together with --start-date or --end-date');
+      expect(result2.stderr).toContain(
+        'Cannot use --days option together with --start-date or --end-date'
+      );
     });
 
     test('should validate date range logic', async () => {
       // Start date after end date
-      const result = await runCLI([
-        '--start-date', '2023-12-31', 
-        '--end-date', '2023-01-01'
-      ]);
+      const result = await runCLI(['--start-date', '2023-12-31', '--end-date', '2023-01-01']);
       expect(result.code).toBe(1);
       expect(result.stderr).toContain('Start date must be before end date');
     });
@@ -185,16 +183,18 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
   describe('New CLI Options', () => {
     test('should accept author name and email options', async () => {
       const result = await runCLI([
-        '--author-name', 'John Doe',
-        '--author-email', 'john@example.com',
-        '--dry-run'
+        '--author-name',
+        'John Doe',
+        '--author-email',
+        'john@example.com',
+        '--dry-run',
       ]);
       expect(result.code).toBe(0);
     });
 
     test('should accept all valid distribution types', async () => {
       const distributions = ['uniform', 'random', 'gaussian', 'custom'];
-      
+
       for (const dist of distributions) {
         const result = await runCLI(['--distribution', dist, '--dry-run']);
         expect(result.code).toBe(0);
@@ -203,7 +203,7 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
 
     test('should accept all valid message styles', async () => {
       const styles = ['default', 'lorem', 'emoji'];
-      
+
       for (const style of styles) {
         const result = await runCLI(['--message-style', style, '--dry-run']);
         expect(result.code).toBe(0);
@@ -236,53 +236,42 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
   describe('Integration with Config System', () => {
     test('should pass CLI options to main function', async () => {
       const result = await runCLI([
-        '--commits', '5',
-        '--distribution', 'uniform',
-        '--author-name', 'Test User',
+        '--commits',
+        '5',
+        '--distribution',
+        'uniform',
+        '--author-name',
+        'Test User',
         '--dry-run',
-        '--verbose'
+        '--verbose',
       ]);
-      
+
       expect(result.code).toBe(0);
       expect(result.stdout).toContain('CLI Options:');
       // In verbose mode, should show the parsed options
     });
 
     test('should handle config file option', async () => {
-      const result = await runCLI([
-        '--config', './test-configs/fake-git.config.json',
-        '--dry-run'
-      ]);
+      const result = await runCLI(['--config', './test-configs/fake-git.config.json', '--dry-run']);
       expect(result.code).toBe(0);
     });
   });
 
   describe('Performance and Edge Cases', () => {
     test('should handle maximum valid values', async () => {
-      const result = await runCLI([
-        '--days', '3650',
-        '--commits', '100',
-        '--dry-run'
-      ]);
+      const result = await runCLI(['--days', '3650', '--commits', '100', '--dry-run']);
       expect(result.code).toBe(0);
     });
 
     test('should handle minimum valid values', async () => {
-      const result = await runCLI([
-        '--days', '1',
-        '--commits', '1',
-        '--dry-run'
-      ]);
+      const result = await runCLI(['--days', '1', '--commits', '1', '--dry-run']);
       expect(result.code).toBe(0);
     });
 
     test('should handle long author names', async () => {
       const longName = 'A'.repeat(99); // Maximum valid length
-      const result = await runCLI([
-        '--author-name', longName,
-        '--dry-run'
-      ]);
+      const result = await runCLI(['--author-name', longName, '--dry-run']);
       expect(result.code).toBe(0);
     });
   });
-}); 
+});

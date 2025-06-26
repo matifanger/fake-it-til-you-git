@@ -32,7 +32,7 @@ const LOREM_MESSAGES = [
   'Totam rem aperiam eaque ipsa quae',
   'Ab illo inventore veritatis et quasi',
   'Architecto beatae vitae dicta sunt',
-  'Explicabo nemo enim ipsam voluptatem'
+  'Explicabo nemo enim ipsam voluptatem',
 ];
 
 /**
@@ -68,7 +68,7 @@ const EMOJI_MESSAGES = [
   '💫 Add animations and transitions',
   '🎯 Improve focus and targeting',
   '⚙️ Configuration changes',
-  '🏗️ Make architectural changes'
+  '🏗️ Make architectural changes',
 ];
 
 /**
@@ -79,10 +79,12 @@ export function loadMessagesFromFile(filePath: string): string[] {
     const content = readFileSync(filePath, 'utf-8');
     return content
       .split('\n')
-      .map(line => line.trim())
-      .filter(line => line.length > 0);
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0);
   } catch (error) {
-    throw new Error(`Failed to load messages from ${filePath}: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    throw new Error(
+      `Failed to load messages from ${filePath}: ${error instanceof Error ? error.message : 'Unknown error'}`
+    );
   }
 }
 
@@ -146,7 +148,7 @@ class SeededRandom {
 export function generateRandomMessage(options: MessageGeneratorOptions): string {
   const { style, customMessages, seed } = options;
   const messages = getMessagesByStyle(style, customMessages);
-  
+
   if (messages.length === 0) {
     throw new Error('No messages available for generation');
   }
@@ -190,7 +192,9 @@ export function validateCustomMessages(messages: string[]): { valid: boolean; er
     }
 
     if (trimmed.length > 100) {
-      errors.push(`Message at index ${index} is too long (max 100 characters): "${trimmed.substring(0, 50)}..."`);
+      errors.push(
+        `Message at index ${index} is too long (max 100 characters): "${trimmed.substring(0, 50)}..."`
+      );
       return;
     }
 
@@ -209,7 +213,7 @@ export function validateCustomMessages(messages: string[]): { valid: boolean; er
 
   return {
     valid: errors.length === 0,
-    errors
+    errors,
   };
 }
 
@@ -228,15 +232,16 @@ export function sanitizeMessage(message: string): string {
  * Sanitize an array of commit messages
  */
 export function sanitizeMessages(messages: string[]): string[] {
-  return messages
-    .map(sanitizeMessage)
-    .filter(message => message.length > 0);
+  return messages.map(sanitizeMessage).filter((message) => message.length > 0);
 }
 
 /**
  * Get message generator statistics
  */
-export function getMessageStats(style: MessageStyle, customMessages?: string[]): {
+export function getMessageStats(
+  style: MessageStyle,
+  customMessages?: string[]
+): {
   style: MessageStyle;
   totalMessages: number;
   sampleMessages: string[];
@@ -248,6 +253,6 @@ export function getMessageStats(style: MessageStyle, customMessages?: string[]):
   return {
     style,
     totalMessages: messages.length,
-    sampleMessages
+    sampleMessages,
   };
-} 
+}

@@ -3,7 +3,7 @@
  */
 
 import { isValidDate, parseDate } from './dates.js';
-import { MessageStyle, validateCustomMessages } from './messages.js';
+import { type MessageStyle, validateCustomMessages } from './messages.js';
 
 export interface Author {
   name: string;
@@ -47,19 +47,20 @@ export interface ValidationResult {
  */
 export function isValidEmail(email: string): boolean {
   const trimmed = email.trim();
-  
+
   // Basic structure validation
-  const emailRegex = /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
-  
+  const emailRegex =
+    /^[a-zA-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?(?:\.[a-zA-Z0-9](?:[a-zA-Z0-9-]{0,61}[a-zA-Z0-9])?)+$/;
+
   if (!emailRegex.test(trimmed)) {
     return false;
   }
-  
+
   // Additional validation for consecutive dots
   if (trimmed.includes('..')) {
     return false;
   }
-  
+
   return true;
 }
 
@@ -68,19 +69,19 @@ export function isValidEmail(email: string): boolean {
  */
 export function isValidAuthorName(name: string): boolean {
   const trimmed = name.trim();
-  
+
   // Must not be empty
   if (trimmed.length === 0) return false;
-  
+
   // Must be reasonable length
   if (trimmed.length > 100) return false;
-  
+
   // Must not contain control characters or line breaks
   if (/[\x00-\x1f\x7f-\x9f]/.test(trimmed)) return false;
-  
+
   // Must not start or end with whitespace after trimming
   if (trimmed !== name) return false;
-  
+
   return true;
 }
 
@@ -147,21 +148,22 @@ export function validateDateRange(dateRange: unknown): ValidationResult {
   if (errors.length === 0) {
     const startDate = parseDate(rangeObj.startDate as string);
     const endDate = parseDate(rangeObj.endDate as string);
-    
+
     if (startDate && endDate) {
       if (startDate > endDate) {
         errors.push('Start date must be before or equal to end date');
       }
-      
+
       // Check if the range is too far in the future
       const today = new Date();
       if (endDate > today) {
         warnings.push('End date is in the future');
       }
-      
+
       // Check if the range is very large
       const daysDiff = Math.ceil((endDate.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysDiff > 3650) { // More than 10 years
+      if (daysDiff > 3650) {
+        // More than 10 years
         warnings.push('Date range spans more than 10 years, this may take a while');
       }
     }
@@ -218,7 +220,7 @@ export function validateCommits(commits: unknown): ValidationResult {
     } else {
       const messageValidation = validateCustomMessages(commitsObj.customMessages);
       if (!messageValidation.valid) {
-        errors.push(...messageValidation.errors.map(err => `Custom messages: ${err}`));
+        errors.push(...messageValidation.errors.map((err) => `Custom messages: ${err}`));
       }
     }
   }
@@ -339,27 +341,31 @@ export function sanitizeConfig(config: Config): Config {
   const sanitized: Config = {
     author: {
       name: sanitizeAuthorName(config.author.name),
-      email: sanitizeEmail(config.author.email)
+      email: sanitizeEmail(config.author.email),
     },
     dateRange: {
       startDate: sanitizeString(config.dateRange.startDate),
-      endDate: sanitizeString(config.dateRange.endDate)
+      endDate: sanitizeString(config.dateRange.endDate),
     },
     commits: {
       maxPerDay: Math.max(1, Math.floor(Math.abs(config.commits.maxPerDay))),
       distribution: config.commits.distribution,
       messageStyle: config.commits.messageStyle,
       ...(config.commits.customMessages && {
-        customMessages: config.commits.customMessages.map(msg => sanitizeString(msg)).filter(msg => msg.length > 0)
-      })
+        customMessages: config.commits.customMessages
+          .map((msg) => sanitizeString(msg))
+          .filter((msg) => msg.length > 0),
+      }),
     },
-    options: config.options ? {
-      dryRun: Boolean(config.options.dryRun),
-      push: Boolean(config.options.push),
-      verbose: Boolean(config.options.verbose),
-      ...(config.options.seed && { seed: sanitizeString(config.options.seed) })
-    } : {}
+    options: config.options
+      ? {
+          dryRun: Boolean(config.options.dryRun),
+          push: Boolean(config.options.push),
+          verbose: Boolean(config.options.verbose),
+          ...(config.options.seed && { seed: sanitizeString(config.options.seed) }),
+        }
+      : {},
   };
 
   return sanitized;
-} 
+}

@@ -1,8 +1,8 @@
-import { simpleGit, SimpleGit, CommitResult, StatusResult } from 'simple-git';
 import { existsSync } from 'fs';
+import { mkdirSync, readFileSync, unlinkSync, writeFileSync } from 'fs';
 import { join, resolve } from 'path';
 import { cwd } from 'process';
-import { writeFileSync, readFileSync, unlinkSync, mkdirSync } from 'fs';
+import { type CommitResult, type SimpleGit, StatusResult, simpleGit } from 'simple-git';
 
 /**
  * Interface for repository information
@@ -84,7 +84,7 @@ export class GitOperations {
     } else {
       this.repoPath = repoPath || cwd();
     }
-    
+
     // Only initialize git if directory exists
     if (existsSync(this.repoPath)) {
       this.git = simpleGit(this.repoPath);
@@ -118,7 +118,7 @@ export class GitOperations {
    * @returns Promise<RepositoryInfo> - Repository details
    */
   async getRepositoryInfo(): Promise<RepositoryInfo> {
-    if (!await this.isGitRepository()) {
+    if (!(await this.isGitRepository())) {
       throw new Error(`Not a Git repository: ${this.repoPath}`);
     }
 
@@ -126,19 +126,22 @@ export class GitOperations {
       const [branch, remotes, log] = await Promise.all([
         this.getCurrentBranch(),
         this.getRemotes(),
-        this.getCommitHistory(1)
+        this.getCommitHistory(1),
       ]);
 
       const remote = remotes.length > 0 ? remotes[0].name : undefined;
       const remoteUrl = remotes.length > 0 ? remotes[0].url : undefined;
       const totalCommits = await this.getTotalCommitCount();
 
-      const lastCommit = log.length > 0 ? {
-        hash: log[0].hash,
-        date: log[0].date,
-        message: log[0].message,
-        author: log[0].author
-      } : undefined;
+      const lastCommit =
+        log.length > 0
+          ? {
+              hash: log[0].hash,
+              date: log[0].date,
+              message: log[0].message,
+              author: log[0].author,
+            }
+          : undefined;
 
       return {
         path: this.repoPath,
@@ -146,10 +149,12 @@ export class GitOperations {
         remote,
         remoteUrl,
         totalCommits,
-        lastCommit
+        lastCommit,
       };
     } catch (error) {
-      throw new Error(`Failed to get repository info: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to get repository info: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -174,9 +179,9 @@ export class GitOperations {
   async getRemotes(): Promise<Array<{ name: string; url: string }>> {
     try {
       const remotes = await this.git.getRemotes(true);
-      return remotes.map(remote => ({
+      return remotes.map((remote) => ({
         name: remote.name,
-        url: remote.refs.fetch || remote.refs.push || ''
+        url: remote.refs.fetch || remote.refs.push || '',
       }));
     } catch (error) {
       // Return empty array if no remotes exist
@@ -189,15 +194,15 @@ export class GitOperations {
    * @param limit - Maximum number of commits to retrieve
    * @returns Promise<CommitInfo[]> - Array of commit information
    */
-  async getCommitHistory(limit: number = 100): Promise<CommitInfo[]> {
+  async getCommitHistory(limit = 100): Promise<CommitInfo[]> {
     try {
       const log = await this.git.log({ maxCount: limit });
-      return log.all.map(commit => ({
+      return log.all.map((commit) => ({
         hash: commit.hash,
         date: new Date(commit.date),
         message: commit.message,
         author: commit.author_name,
-        email: commit.author_email
+        email: commit.author_email,
       }));
     } catch (error) {
       // Return empty array if no commits exist
@@ -212,7 +217,7 @@ export class GitOperations {
   async getTotalCommitCount(): Promise<number> {
     try {
       const log = await this.git.raw(['rev-list', '--count', 'HEAD']);
-      return parseInt(log.trim(), 10);
+      return Number.parseInt(log.trim(), 10);
     } catch (error) {
       // Return 0 if no commits exist
       return 0;
@@ -226,16 +231,18 @@ export class GitOperations {
   async getRepositoryStatus(): Promise<RepoStatus> {
     try {
       const status = await this.git.status();
-      
+
       return {
         isClean: status.isClean(),
         staged: status.staged,
         modified: status.modified,
         untracked: status.not_added,
-        deleted: status.deleted
+        deleted: status.deleted,
       };
     } catch (error) {
-      throw new Error(`Failed to get repository status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to get repository status: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -256,7 +263,9 @@ export class GitOperations {
     try {
       await this.git.init();
     } catch (error) {
-      throw new Error(`Failed to initialize Git repository: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to initialize Git repository: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -268,7 +277,9 @@ export class GitOperations {
     try {
       await this.git.add('.');
     } catch (error) {
-      throw new Error(`Failed to add files: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to add files: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -288,10 +299,7 @@ export class GitOperations {
       // Create a new git instance with custom environment
       const gitWithEnv = simpleGit({
         baseDir: this.repoPath,
-        config: [
-          `user.name=${author.name}`,
-          `user.email=${author.email}`
-        ]
+        config: [`user.name=${author.name}`, `user.email=${author.email}`],
       });
 
       // Set environment variables for the current process temporarily
@@ -301,7 +309,7 @@ export class GitOperations {
         GIT_COMMITTER_NAME: process.env.GIT_COMMITTER_NAME,
         GIT_COMMITTER_EMAIL: process.env.GIT_COMMITTER_EMAIL,
         GIT_AUTHOR_DATE: process.env.GIT_AUTHOR_DATE,
-        GIT_COMMITTER_DATE: process.env.GIT_COMMITTER_DATE
+        GIT_COMMITTER_DATE: process.env.GIT_COMMITTER_DATE,
       };
 
       process.env.GIT_AUTHOR_NAME = author.name;
@@ -316,7 +324,7 @@ export class GitOperations {
         return result;
       } finally {
         // Restore original environment variables
-        Object.keys(originalEnv).forEach(key => {
+        Object.keys(originalEnv).forEach((key) => {
           const value = originalEnv[key as keyof typeof originalEnv];
           if (value === undefined) {
             delete process.env[key];
@@ -326,7 +334,9 @@ export class GitOperations {
         });
       }
     } catch (error) {
-      throw new Error(`Failed to create commit: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to create commit: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -361,7 +371,9 @@ export class GitOperations {
     try {
       await this.git.checkoutLocalBranch(branchName);
     } catch (error) {
-      throw new Error(`Failed to create branch: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to create branch: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -374,7 +386,9 @@ export class GitOperations {
     try {
       await this.git.checkout(branchName);
     } catch (error) {
-      throw new Error(`Failed to switch to branch: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to switch to branch: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -383,7 +397,7 @@ export class GitOperations {
    * @returns Promise<BackupInfo> - Backup information
    */
   async createBackup(): Promise<BackupInfo> {
-    if (!await this.isGitRepository()) {
+    if (!(await this.isGitRepository())) {
       throw new Error('Not a Git repository - cannot create backup');
     }
 
@@ -409,7 +423,7 @@ export class GitOperations {
         lastCommitHash: headHash,
         totalCommits: repositoryInfo.totalCommits,
         backupPath,
-        repositoryPath: this.repoPath
+        repositoryPath: this.repoPath,
       };
 
       // Save backup info to file
@@ -417,7 +431,9 @@ export class GitOperations {
 
       return backupInfo;
     } catch (error) {
-      throw new Error(`Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -427,7 +443,7 @@ export class GitOperations {
    * @returns Promise<void>
    */
   async restoreFromBackup(backupInfo: BackupInfo): Promise<void> {
-    if (!await this.isGitRepository()) {
+    if (!(await this.isGitRepository())) {
       throw new Error('Not a Git repository - cannot restore backup');
     }
 
@@ -442,11 +458,13 @@ export class GitOperations {
         try {
           // Check if the commit exists
           await this.git.show([backupInfo.lastCommitHash, '--name-only']);
-          
+
           // Reset to the backup commit
           await this.git.reset(['--hard', backupInfo.lastCommitHash]);
         } catch (error) {
-          throw new Error(`Cannot restore to commit ${backupInfo.lastCommitHash}: commit not found`);
+          throw new Error(
+            `Cannot restore to commit ${backupInfo.lastCommitHash}: commit not found`
+          );
         }
       }
 
@@ -460,9 +478,10 @@ export class GitOperations {
         // If branch switch fails, continue with current branch
         console.warn(`Warning: Could not switch to original branch ${backupInfo.branch}`);
       }
-
     } catch (error) {
-      throw new Error(`Failed to restore from backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      throw new Error(
+        `Failed to restore from backup: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -478,13 +497,13 @@ export class GitOperations {
       commitCount: 0,
       branchInfo: {
         current: '',
-        exists: false
-      }
+        exists: false,
+      },
     };
 
     try {
       // Check if it's a valid Git repository
-      if (!await this.isGitRepository()) {
+      if (!(await this.isGitRepository())) {
         result.isValid = false;
         result.errors.push('Not a valid Git repository');
         return result;
@@ -497,7 +516,9 @@ export class GitOperations {
           result.warnings.push('Working directory is not clean');
         }
       } catch (error) {
-        result.errors.push(`Failed to get repository status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        result.errors.push(
+          `Failed to get repository status: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
       }
 
       // Get current branch info
@@ -506,7 +527,9 @@ export class GitOperations {
         result.branchInfo.current = currentBranch;
         result.branchInfo.exists = true;
       } catch (error) {
-        result.errors.push(`Failed to get current branch: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        result.errors.push(
+          `Failed to get current branch: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
         result.branchInfo.exists = false;
       }
 
@@ -514,7 +537,9 @@ export class GitOperations {
       try {
         result.commitCount = await this.getTotalCommitCount();
       } catch (error) {
-        result.warnings.push(`Could not get commit count: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        result.warnings.push(
+          `Could not get commit count: ${error instanceof Error ? error.message : 'Unknown error'}`
+        );
       }
 
       // Verify Git objects integrity
@@ -542,10 +567,11 @@ export class GitOperations {
 
       // Set overall validity
       result.isValid = result.errors.length === 0;
-
     } catch (error) {
       result.isValid = false;
-      result.errors.push(`Integrity check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      result.errors.push(
+        `Integrity check failed: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
 
     return result;
@@ -559,7 +585,7 @@ export class GitOperations {
   async cleanupBackup(backupInfo?: BackupInfo): Promise<void> {
     try {
       const backupDir = join(this.repoPath, '.git', 'fake-it-til-you-git-backups');
-      
+
       if (!existsSync(backupDir)) {
         return; // No backups to clean up
       }
@@ -573,7 +599,7 @@ export class GitOperations {
         // Clean up all backups older than 24 hours
         const fs = await import('fs/promises');
         const files = await fs.readdir(backupDir);
-        
+
         for (const file of files) {
           if (file.endsWith('.json')) {
             const filePath = join(backupDir, file);
@@ -581,7 +607,7 @@ export class GitOperations {
               const backupData = JSON.parse(readFileSync(filePath, 'utf8')) as BackupInfo;
               const backupAge = Date.now() - new Date(backupData.timestamp).getTime();
               const twentyFourHours = 24 * 60 * 60 * 1000;
-              
+
               if (backupAge > twentyFourHours) {
                 unlinkSync(filePath);
               }
@@ -594,7 +620,9 @@ export class GitOperations {
       }
     } catch (error) {
       // Cleanup errors are not critical, just log them
-      console.warn(`Warning: Failed to cleanup backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.warn(
+        `Warning: Failed to cleanup backup: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
   }
 
@@ -604,17 +632,17 @@ export class GitOperations {
    */
   async listBackups(): Promise<BackupInfo[]> {
     const backups: BackupInfo[] = [];
-    
+
     try {
       const backupDir = join(this.repoPath, '.git', 'fake-it-til-you-git-backups');
-      
+
       if (!existsSync(backupDir)) {
         return backups;
       }
 
       const fs = await import('fs/promises');
       const files = await fs.readdir(backupDir);
-      
+
       for (const file of files) {
         if (file.endsWith('.json')) {
           const filePath = join(backupDir, file);
@@ -630,10 +658,11 @@ export class GitOperations {
 
       // Sort by timestamp (newest first)
       backups.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
-      
     } catch (error) {
       // Return empty array if we can't list backups
-      console.warn(`Warning: Failed to list backups: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      console.warn(
+        `Warning: Failed to list backups: ${error instanceof Error ? error.message : 'Unknown error'}`
+      );
     }
 
     return backups;
@@ -667,4 +696,4 @@ export async function isGitRepository(path: string = cwd()): Promise<boolean> {
 export async function getRepositoryInfo(path?: string): Promise<RepositoryInfo> {
   const git = new GitOperations(path);
   return await git.getRepositoryInfo();
-} 
+}

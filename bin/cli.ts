@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 
+import chalk from 'chalk';
 import { Command } from 'commander';
 import { main } from '../src/main.js';
-import chalk from 'chalk';
 
 const program = new Command();
 
@@ -10,7 +10,9 @@ program
   .name('fake-it-til-you-git')
   .description('A modern CLI tool to generate fake Git commit history for your GitHub profile')
   .version('1.0.0')
-  .addHelpText('after', `
+  .addHelpText(
+    'after',
+    `
 ${chalk.cyan('Examples:')}
   ${chalk.dim('# Generate 30 days of commits with default settings')}
   fake-it-til-you-git --days 30
@@ -44,60 +46,57 @@ ${chalk.cyan('Message Styles:')}
   • default    - Realistic commit messages (default)
   • lorem      - Lorem ipsum style messages
   • emoji      - Messages with emojis
-`);
+`
+  );
 
 // Date and Range Options
 program
-  .option('-d, --days <number>', 
-    'Number of days to go back from today (e.g., 365 for one year)', 
-    validateDays, 
-    '365')
-  .option('--start-date <date>', 
-    'Start date in YYYY-MM-DD format (e.g., 2023-01-01)', 
-    validateDate)
-  .option('--end-date <date>', 
-    'End date in YYYY-MM-DD format (e.g., 2023-12-31)', 
-    validateDate);
+  .option(
+    '-d, --days <number>',
+    'Number of days to go back from today (e.g., 365 for one year)',
+    validateDays,
+    '365'
+  )
+  .option('--start-date <date>', 'Start date in YYYY-MM-DD format (e.g., 2023-01-01)', validateDate)
+  .option('--end-date <date>', 'End date in YYYY-MM-DD format (e.g., 2023-12-31)', validateDate);
 
 // Commit Configuration
 program
-  .option('-c, --commits <number>', 
-    'Maximum commits per day (1-100, default: 10)', 
-    validateCommits, 
-    '10')
-  .option('--distribution <type>', 
-    'Distribution type: uniform, random, gaussian, custom (default: random)', 
-    validateDistribution, 
-    'random')
-  .option('--message-style <style>', 
-    'Message style: default, lorem, emoji (default: default)', 
-    validateMessageStyle, 
-    'default');
+  .option(
+    '-c, --commits <number>',
+    'Maximum commits per day (1-100, default: 10)',
+    validateCommits,
+    '10'
+  )
+  .option(
+    '--distribution <type>',
+    'Distribution type: uniform, random, gaussian, custom (default: random)',
+    validateDistribution,
+    'random'
+  )
+  .option(
+    '--message-style <style>',
+    'Message style: default, lorem, emoji (default: default)',
+    validateMessageStyle,
+    'default'
+  );
 
 // Author Configuration
 program
-  .option('--author-name <name>', 
-    'Git author name (overrides config file)')
-  .option('--author-email <email>', 
-    'Git author email (overrides config file)', 
-    validateEmail);
+  .option('--author-name <name>', 'Git author name (overrides config file)')
+  .option('--author-email <email>', 'Git author email (overrides config file)', validateEmail);
 
 // Behavior Options
 program
-  .option('--dry-run', 
-    'Preview commits without creating them (safe mode)', 
-    false)
-  .option('--config <path>', 
-    'Path to JSON configuration file (default: ./test-configs/fake-git.config.json)', 
-    './test-configs/fake-git.config.json')
-  .option('--push', 
-    'Push commits to remote repository after creation', 
-    false)
-  .option('--seed <string>', 
-    'Random seed for reproducible results (any string)')
-  .option('-v, --verbose', 
-    'Enable verbose output for debugging', 
-    false);
+  .option('--dry-run', 'Preview commits without creating them (safe mode)', false)
+  .option(
+    '--config <path>',
+    'Path to JSON configuration file (default: ./test-configs/fake-git.config.json)',
+    './test-configs/fake-git.config.json'
+  )
+  .option('--push', 'Push commits to remote repository after creation', false)
+  .option('--seed <string>', 'Random seed for reproducible results (any string)')
+  .option('-v, --verbose', 'Enable verbose output for debugging', false);
 
 // Validation functions
 function validateDays(value: string): string {
@@ -121,27 +120,31 @@ function validateDate(value: string): string {
   if (!dateRegex.test(value)) {
     throw new Error(`Invalid date format: ${value}. Use YYYY-MM-DD format.`);
   }
-  
+
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) {
     throw new Error(`Invalid date: ${value}. Please provide a valid date.`);
   }
-  
+
   // Check if date is not too far in the future (more than 1 year)
   const oneYearFromNow = new Date();
   oneYearFromNow.setFullYear(oneYearFromNow.getFullYear() + 1);
-  
+
   if (date > oneYearFromNow) {
-    throw new Error(`Date too far in the future: ${value}. Please use a date within one year from now.`);
+    throw new Error(
+      `Date too far in the future: ${value}. Please use a date within one year from now.`
+    );
   }
-  
+
   return value;
 }
 
 function validateDistribution(value: string): string {
   const validDistributions = ['uniform', 'random', 'gaussian', 'custom'];
   if (!validDistributions.includes(value)) {
-    throw new Error(`Invalid distribution: ${value}. Valid options: ${validDistributions.join(', ')}`);
+    throw new Error(
+      `Invalid distribution: ${value}. Valid options: ${validDistributions.join(', ')}`
+    );
   }
   return value;
 }
@@ -173,7 +176,7 @@ try {
     // These are normal exit cases, not errors
     process.exit(0);
   }
-  
+
   if (error instanceof Error) {
     if (error.message.includes('unknown option')) {
       // Commander.js unknown option error
@@ -195,7 +198,10 @@ const options = program.opts();
 try {
   validateOptionCombinations(options);
 } catch (error) {
-  console.error(chalk.red('❌ Configuration Error:'), error instanceof Error ? error.message : 'Unknown error');
+  console.error(
+    chalk.red('❌ Configuration Error:'),
+    error instanceof Error ? error.message : 'Unknown error'
+  );
   console.log(chalk.dim('\nUse --help for usage information.'));
   process.exit(1);
 }
@@ -203,12 +209,12 @@ try {
 // Enhanced error handling for main function
 main(options).catch((error: Error) => {
   console.error(chalk.red('❌ Error:'), error.message);
-  
+
   if (options.verbose) {
     console.error(chalk.dim('\nStack trace:'));
     console.error(chalk.dim(error.stack));
   }
-  
+
   console.log(chalk.dim('\nUse --verbose for more details or --help for usage information.'));
   process.exit(1);
 });
@@ -221,36 +227,42 @@ function validateOptionCombinations(options: Record<string, any>): void {
   if (options.startDate && options.endDate) {
     const startDate = new Date(options.startDate);
     const endDate = new Date(options.endDate);
-    
+
     if (startDate >= endDate) {
       throw new Error('Start date must be before end date.');
     }
-    
+
     // Check if date range is too large (more than 10 years)
     const maxRange = 10 * 365 * 24 * 60 * 60 * 1000; // 10 years in milliseconds
     if (endDate.getTime() - startDate.getTime() > maxRange) {
       throw new Error('Date range too large. Maximum supported range is 10 years.');
     }
   }
-  
+
   // Validate that days option doesn't conflict with date range
   // Only check if days was explicitly provided (not just default value)
   const daysWasExplicitlyProvided = process.argv.includes('--days') || process.argv.includes('-d');
   if (daysWasExplicitlyProvided && (options.startDate || options.endDate)) {
-    throw new Error('Cannot use --days option together with --start-date or --end-date. Choose one approach.');
+    throw new Error(
+      'Cannot use --days option together with --start-date or --end-date. Choose one approach.'
+    );
   }
-  
+
   // Validate seed is not empty if provided
   if (options.seed && typeof options.seed === 'string' && options.seed.trim().length === 0) {
     throw new Error('Seed cannot be empty. Provide a meaningful string value.');
   }
-  
+
   // Warn about potentially problematic combinations
   if (options.commits && Number.parseInt(options.commits, 10) > 50 && !options.dryRun) {
-    console.warn(chalk.yellow('⚠️  Warning: High commits per day (>50) may create unrealistic patterns. Consider using --dry-run first.'));
+    console.warn(
+      chalk.yellow(
+        '⚠️  Warning: High commits per day (>50) may create unrealistic patterns. Consider using --dry-run first.'
+      )
+    );
   }
-  
+
   if (options.push && options.dryRun) {
     console.warn(chalk.yellow('⚠️  Warning: --push option ignored in dry-run mode.'));
   }
-} 
+}

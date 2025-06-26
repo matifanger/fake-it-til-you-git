@@ -1,16 +1,16 @@
 import {
-  isValidEmail,
+  type Config,
   isValidAuthorName,
-  validateAuthor,
-  validateDateRange,
-  validateCommits,
-  validateOptions,
-  validateConfig,
-  sanitizeString,
-  sanitizeEmail,
+  isValidEmail,
   sanitizeAuthorName,
   sanitizeConfig,
-  Config
+  sanitizeEmail,
+  sanitizeString,
+  validateAuthor,
+  validateCommits,
+  validateConfig,
+  validateDateRange,
+  validateOptions,
 } from '../../src/utils/validation.js';
 
 describe('Validation Utils', () => {
@@ -47,7 +47,7 @@ describe('Validation Utils', () => {
       expect(isValidAuthorName('Jane Smith-Wilson')).toBe(true);
       expect(isValidAuthorName('José García')).toBe(true);
       expect(isValidAuthorName('A')).toBe(true);
-      expect(isValidAuthorName('John O\'Connor')).toBe(true);
+      expect(isValidAuthorName("John O'Connor")).toBe(true);
     });
 
     test('should reject invalid author names', () => {
@@ -65,9 +65,9 @@ describe('Validation Utils', () => {
     test('should validate correct author configuration', () => {
       const validAuthor = {
         name: 'John Doe',
-        email: 'john@example.com'
+        email: 'john@example.com',
       };
-      
+
       const result = validateAuthor(validAuthor);
       expect(result.valid).toBe(true);
       expect(result.errors).toEqual([]);
@@ -93,7 +93,9 @@ describe('Validation Utils', () => {
       const authorWithBadName = { name: 'John\nDoe', email: 'john@example.com' };
       const result3 = validateAuthor(authorWithBadName);
       expect(result3.valid).toBe(false);
-      expect(result3.errors).toContain('Author name is invalid (must be 1-100 characters, no control characters)');
+      expect(result3.errors).toContain(
+        'Author name is invalid (must be 1-100 characters, no control characters)'
+      );
     });
 
     test('should reject missing or invalid email', () => {
@@ -113,9 +115,9 @@ describe('Validation Utils', () => {
     test('should validate correct date range', () => {
       const validRange = {
         startDate: '2023-01-01',
-        endDate: '2023-12-31'
+        endDate: '2023-12-31',
       };
-      
+
       const result = validateDateRange(validRange);
       expect(result.valid).toBe(true);
       expect(result.errors).toEqual([]);
@@ -147,9 +149,9 @@ describe('Validation Utils', () => {
     test('should reject invalid date range logic', () => {
       const invalidRange = {
         startDate: '2023-12-31',
-        endDate: '2023-01-01'
+        endDate: '2023-01-01',
       };
-      
+
       const result = validateDateRange(invalidRange);
       expect(result.valid).toBe(false);
       expect(result.errors).toContain('Start date must be before or equal to end date');
@@ -161,9 +163,9 @@ describe('Validation Utils', () => {
       futureDate.setFullYear(futureDate.getFullYear() + 1);
       const futureRange = {
         startDate: '2023-01-01',
-        endDate: futureDate.toISOString().split('T')[0]
+        endDate: futureDate.toISOString().split('T')[0],
       };
-      
+
       const result1 = validateDateRange(futureRange);
       expect(result1.valid).toBe(true);
       expect(result1.warnings).toContain('End date is in the future');
@@ -171,12 +173,14 @@ describe('Validation Utils', () => {
       // Large range warning
       const largeRange = {
         startDate: '2000-01-01',
-        endDate: '2023-12-31'
+        endDate: '2023-12-31',
       };
-      
+
       const result2 = validateDateRange(largeRange);
       expect(result2.valid).toBe(true);
-      expect(result2.warnings).toContain('Date range spans more than 10 years, this may take a while');
+      expect(result2.warnings).toContain(
+        'Date range spans more than 10 years, this may take a while'
+      );
     });
   });
 
@@ -185,9 +189,9 @@ describe('Validation Utils', () => {
       const validCommits = {
         maxPerDay: 5,
         distribution: 'random',
-        messageStyle: 'default'
+        messageStyle: 'default',
       };
-      
+
       const result = validateCommits(validCommits);
       expect(result.valid).toBe(true);
       expect(result.errors).toEqual([]);
@@ -205,20 +209,34 @@ describe('Validation Utils', () => {
       expect(result1.valid).toBe(false);
       expect(result1.errors).toContain('maxPerDay is required');
 
-      const commitsWithInvalidMaxPerDay = { maxPerDay: 'invalid', distribution: 'random', messageStyle: 'default' };
+      const commitsWithInvalidMaxPerDay = {
+        maxPerDay: 'invalid',
+        distribution: 'random',
+        messageStyle: 'default',
+      };
       const result2 = validateCommits(commitsWithInvalidMaxPerDay);
       expect(result2.valid).toBe(false);
       expect(result2.errors).toContain('maxPerDay must be an integer');
 
-      const commitsWithNegativeMaxPerDay = { maxPerDay: -1, distribution: 'random', messageStyle: 'default' };
+      const commitsWithNegativeMaxPerDay = {
+        maxPerDay: -1,
+        distribution: 'random',
+        messageStyle: 'default',
+      };
       const result3 = validateCommits(commitsWithNegativeMaxPerDay);
       expect(result3.valid).toBe(false);
       expect(result3.errors).toContain('maxPerDay must be at least 1');
 
-      const commitsWithHighMaxPerDay = { maxPerDay: 150, distribution: 'random', messageStyle: 'default' };
+      const commitsWithHighMaxPerDay = {
+        maxPerDay: 150,
+        distribution: 'random',
+        messageStyle: 'default',
+      };
       const result4 = validateCommits(commitsWithHighMaxPerDay);
       expect(result4.valid).toBe(true);
-      expect(result4.warnings).toContain('maxPerDay is very high (>100), this may create unrealistic commit patterns');
+      expect(result4.warnings).toContain(
+        'maxPerDay is very high (>100), this may create unrealistic commit patterns'
+      );
     });
 
     test('should validate distribution', () => {
@@ -227,10 +245,16 @@ describe('Validation Utils', () => {
       expect(result1.valid).toBe(false);
       expect(result1.errors).toContain('Distribution is required and must be a string');
 
-      const commitsWithInvalidDistribution = { maxPerDay: 5, distribution: 'invalid', messageStyle: 'default' };
+      const commitsWithInvalidDistribution = {
+        maxPerDay: 5,
+        distribution: 'invalid',
+        messageStyle: 'default',
+      };
       const result2 = validateCommits(commitsWithInvalidDistribution);
       expect(result2.valid).toBe(false);
-      expect(result2.errors).toContain('Distribution must be one of: uniform, random, gaussian, custom');
+      expect(result2.errors).toContain(
+        'Distribution must be one of: uniform, random, gaussian, custom'
+      );
     });
 
     test('should validate messageStyle', () => {
@@ -239,7 +263,11 @@ describe('Validation Utils', () => {
       expect(result1.valid).toBe(false);
       expect(result1.errors).toContain('Message style is required and must be a string');
 
-      const commitsWithInvalidMessageStyle = { maxPerDay: 5, distribution: 'random', messageStyle: 'invalid' };
+      const commitsWithInvalidMessageStyle = {
+        maxPerDay: 5,
+        distribution: 'random',
+        messageStyle: 'invalid',
+      };
       const result2 = validateCommits(commitsWithInvalidMessageStyle);
       expect(result2.valid).toBe(false);
       expect(result2.errors).toContain('Message style must be one of: default, lorem, emoji');
@@ -250,9 +278,9 @@ describe('Validation Utils', () => {
         maxPerDay: 5,
         distribution: 'random',
         messageStyle: 'default',
-        customMessages: 'not an array'
+        customMessages: 'not an array',
       };
-      
+
       const result = validateCommits(commitsWithInvalidCustomMessages);
       expect(result.valid).toBe(false);
       expect(result.errors).toContain('Custom messages must be an array');
@@ -265,9 +293,9 @@ describe('Validation Utils', () => {
         dryRun: true,
         push: false,
         verbose: true,
-        seed: 'test-seed'
+        seed: 'test-seed',
       };
-      
+
       const result = validateOptions(validOptions);
       expect(result.valid).toBe(true);
       expect(result.errors).toEqual([]);
@@ -317,22 +345,22 @@ describe('Validation Utils', () => {
     const validConfig = {
       author: {
         name: 'John Doe',
-        email: 'john@example.com'
+        email: 'john@example.com',
       },
       dateRange: {
         startDate: '2023-01-01',
-        endDate: '2023-12-31'
+        endDate: '2023-12-31',
       },
       commits: {
         maxPerDay: 5,
         distribution: 'random',
-        messageStyle: 'default'
+        messageStyle: 'default',
       },
       options: {
         dryRun: false,
         push: false,
-        verbose: false
-      }
+        verbose: false,
+      },
     };
 
     test('should validate complete valid configuration', () => {
@@ -351,9 +379,9 @@ describe('Validation Utils', () => {
       const invalidConfig = {
         author: { name: '', email: 'invalid-email' },
         dateRange: { startDate: 'invalid', endDate: 'invalid' },
-        commits: { maxPerDay: -1, distribution: 'invalid', messageStyle: 'invalid' }
+        commits: { maxPerDay: -1, distribution: 'invalid', messageStyle: 'invalid' },
       };
-      
+
       const result = validateConfig(invalidConfig);
       expect(result.valid).toBe(false);
       expect(result.errors.length).toBeGreaterThan(0);
@@ -396,28 +424,28 @@ describe('Validation Utils', () => {
         const dirtyConfig: Config = {
           author: {
             name: '  John Doe  ',
-            email: '  JOHN@EXAMPLE.COM  '
+            email: '  JOHN@EXAMPLE.COM  ',
           },
           dateRange: {
             startDate: '  2023-01-01  ',
-            endDate: '  2023-12-31  '
+            endDate: '  2023-12-31  ',
           },
           commits: {
             maxPerDay: -5.7, // Should be sanitized to positive integer
             distribution: 'random',
             messageStyle: 'default',
-            customMessages: ['  message 1  ', '', '  message 2  ']
+            customMessages: ['  message 1  ', '', '  message 2  '],
           },
           options: {
             dryRun: true,
             push: false,
             verbose: true,
-            seed: '  test-seed  '
-          }
+            seed: '  test-seed  ',
+          },
         };
 
         const sanitized = sanitizeConfig(dirtyConfig);
-        
+
         expect(sanitized.author.name).toBe('John Doe');
         expect(sanitized.author.email).toBe('john@example.com');
         expect(sanitized.dateRange.startDate).toBe('2023-01-01');
@@ -428,4 +456,4 @@ describe('Validation Utils', () => {
       });
     });
   });
-}); 
+});
