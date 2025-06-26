@@ -159,6 +159,46 @@ describe('Config Loader', () => {
       expect(result).toEqual({});
     });
 
+    it('should convert author CLI options to config format', () => {
+      const cliOptions: CliOptions = {
+        authorName: 'John Doe',
+        authorEmail: 'john@example.com'
+      };
+
+      const result = cliOptionsToConfig(cliOptions);
+
+      expect(result).toEqual({
+        author: {
+          name: 'John Doe',
+          email: 'john@example.com'
+        }
+      });
+    });
+
+    it('should handle partial author options', () => {
+      const cliOptionsNameOnly: CliOptions = {
+        authorName: 'Jane Smith'
+      };
+
+      const result1 = cliOptionsToConfig(cliOptionsNameOnly);
+      expect(result1).toEqual({
+        author: {
+          name: 'Jane Smith'
+        }
+      });
+
+      const cliOptionsEmailOnly: CliOptions = {
+        authorEmail: 'jane@example.com'
+      };
+
+      const result2 = cliOptionsToConfig(cliOptionsEmailOnly);
+      expect(result2).toEqual({
+        author: {
+          email: 'jane@example.com'
+        }
+      });
+    });
+
     it('should handle partial options correctly', () => {
       const cliOptions: CliOptions = {
         push: true,

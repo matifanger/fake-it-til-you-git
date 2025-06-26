@@ -8,6 +8,8 @@ interface CliOptions {
   endDate?: string;
   distribution?: string;
   messageStyle?: string;
+  authorName?: string;
+  authorEmail?: string;
   dryRun?: boolean;
   config?: string;
   push?: boolean;

@@ -49,6 +49,8 @@ export interface CliOptions {
   endDate?: string;
   distribution?: string;
   messageStyle?: string;
+  authorName?: string;
+  authorEmail?: string;
   dryRun?: boolean;
   config?: string;
   push?: boolean;
@@ -112,6 +114,19 @@ export async function loadConfigFromFile(configPath: string): Promise<PartialCon
  */
 export function cliOptionsToConfig(cliOptions: CliOptions): PartialConfig {
   const config: PartialConfig = {};
+
+  // Handle author configuration
+  if (cliOptions.authorName || cliOptions.authorEmail) {
+    config.author = {};
+    
+    if (cliOptions.authorName) {
+      config.author.name = cliOptions.authorName;
+    }
+    
+    if (cliOptions.authorEmail) {
+      config.author.email = cliOptions.authorEmail;
+    }
+  }
 
   // Handle date range
   if (cliOptions.startDate || cliOptions.endDate || cliOptions.days) {
