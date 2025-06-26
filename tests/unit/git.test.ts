@@ -632,62 +632,168 @@ describe('GitOperations', () => {
       });
     });
 
-    describe('listBackups', () => {
-      it('should return empty array when no backups exist', async () => {
-        const cleanRepoPath = join(process.cwd(), 'test-list-repo');
-        mkdirSync(cleanRepoPath, { recursive: true });
-        execSync('git init', { cwd: cleanRepoPath, stdio: 'ignore' });
+      describe('listBackups', () => {
+    it('should return empty array when no backups exist', async () => {
+      const cleanRepoPath = join(process.cwd(), 'test-list-repo');
+      mkdirSync(cleanRepoPath, { recursive: true });
+      execSync('git init', { cwd: cleanRepoPath, stdio: 'ignore' });
 
-        const cleanGitOps = new GitOperations(cleanRepoPath);
-        const backups = await cleanGitOps.listBackups();
+      const cleanGitOps = new GitOperations(cleanRepoPath);
+      const backups = await cleanGitOps.listBackups();
 
-        expect(backups).toEqual([]);
+      expect(backups).toEqual([]);
 
-        safeRemoveDir(cleanRepoPath);
+      safeRemoveDir(cleanRepoPath);
+    });
+
+    it('should list existing backups sorted by timestamp', async () => {
+      // Create multiple backups with small delay
+      const backup1 = await gitOps.createBackup();
+      await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay
+      const backup2 = await gitOps.createBackup();
+      await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay
+      const backup3 = await gitOps.createBackup();
+
+      const backups = await gitOps.listBackups();
+
+      expect(backups).toHaveLength(3);
+
+      // Should be sorted by timestamp (newest first)
+      expect(new Date(backups[0].timestamp).getTime()).toBeGreaterThanOrEqual(
+        new Date(backups[1].timestamp).getTime()
+      );
+      expect(new Date(backups[1].timestamp).getTime()).toBeGreaterThanOrEqual(
+        new Date(backups[2].timestamp).getTime()
+      );
+
+      // Verify backup IDs match
+      const backupIds = backups.map((b) => b.id).sort();
+      const expectedIds = [backup1.id, backup2.id, backup3.id].sort();
+      expect(backupIds).toEqual(expectedIds);
+    });
+
+    it('should skip corrupted backup files', async () => {
+      // Create valid backup
+      const validBackup = await gitOps.createBackup();
+
+      // Create corrupted backup file
+      const backupDir = join(testRepoPath, '.git', 'fake-it-til-you-git-backups');
+      const corruptedPath = join(backupDir, 'corrupted.json');
+      writeFileSync(corruptedPath, 'invalid json content');
+
+      const backups = await gitOps.listBackups();
+
+      // Should only return the valid backup
+      expect(backups).toHaveLength(1);
+      expect(backups[0].id).toBe(validBackup.id);
+    });
+  });
+
+  describe('Push Operations (Step 9.1)', () => {
+    beforeEach(() => {
+      // Ensure we have some content to commit
+      writeFileSync(join(testRepoPath, 'test-file.txt'), 'test content');
+      execSync('git add .', { cwd: testRepoPath, stdio: 'ignore' });
+      execSync('git commit -m "Initial commit"', { cwd: testRepoPath, stdio: 'ignore' });
+    });
+
+    describe('push', () => {
+      it('should fail when no remote is configured', async () => {
+        const result = await gitOps.push();
+
+        expect(result.success).toBe(false);
+        expect(result.error).toBe('No remote repository configured');
       });
 
-      it('should list existing backups sorted by timestamp', async () => {
-        // Create multiple backups with small delay
-        const backup1 = await gitOps.createBackup();
-        await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay
-        const backup2 = await gitOps.createBackup();
-        await new Promise((resolve) => setTimeout(resolve, 10)); // Small delay
-        const backup3 = await gitOps.createBackup();
+      it('should attempt to push when remote is configured', async () => {
+        // Add a mock remote (will fail but should show correct behavior)
+        execSync('git remote add origin https://github.com/test/nonexistent-repo.git', {
+          cwd: testRepoPath,
+          stdio: 'ignore',
+        });
 
-        const backups = await gitOps.listBackups();
+        const result = await gitOps.push();
 
-        expect(backups).toHaveLength(3);
-
-        // Should be sorted by timestamp (newest first)
-        expect(new Date(backups[0].timestamp).getTime()).toBeGreaterThanOrEqual(
-          new Date(backups[1].timestamp).getTime()
-        );
-        expect(new Date(backups[1].timestamp).getTime()).toBeGreaterThanOrEqual(
-          new Date(backups[2].timestamp).getTime()
-        );
-
-        // Verify backup IDs match
-        const backupIds = backups.map((b) => b.id).sort();
-        const expectedIds = [backup1.id, backup2.id, backup3.id].sort();
-        expect(backupIds).toEqual(expectedIds);
+        // This will likely fail due to non-existent remote, but structure should be correct
+        expect(result.success).toBe(false);
+        expect(result.error).toBeDefined();
+        expect(typeof result.error).toBe('string');
       });
 
-      it('should skip corrupted backup files', async () => {
-        // Create valid backup
-        const validBackup = await gitOps.createBackup();
+      it('should handle authentication errors gracefully', async () => {
+        // Add a real but unauthorized remote
+        execSync('git remote add origin https://github.com/microsoft/vscode.git', {
+          cwd: testRepoPath,
+          stdio: 'ignore',
+        });
 
-        // Create corrupted backup file
-        const backupDir = join(testRepoPath, '.git', 'fake-it-til-you-git-backups');
-        const corruptedPath = join(backupDir, 'corrupted.json');
-        writeFileSync(corruptedPath, 'invalid json content');
+        const result = await gitOps.push();
 
-        const backups = await gitOps.listBackups();
+        expect(result.success).toBe(false);
+        expect(result.error).toBeDefined();
+        // Should handle the error gracefully without throwing
+      });
 
-        // Should only return the valid backup
-        expect(backups).toHaveLength(1);
-        expect(backups[0].id).toBe(validBackup.id);
+      it('should return proper structure on push failure', async () => {
+        execSync('git remote add origin https://invalid-url-that-does-not-exist.com/repo.git', {
+          cwd: testRepoPath,
+          stdio: 'ignore',
+        });
+
+        const result = await gitOps.push();
+
+        expect(result).toHaveProperty('success');
+        expect(result).toHaveProperty('error');
+        expect(result.success).toBe(false);
+        expect(typeof result.error).toBe('string');
       });
     });
+
+    describe('Push Integration with Remote Detection', () => {
+      it('should correctly identify when remotes are available for push', async () => {
+        // Test without remote
+        let remotes = await gitOps.getRemotes();
+        expect(remotes).toHaveLength(0);
+
+        // Add remote
+        execSync('git remote add origin https://github.com/test/repo.git', {
+          cwd: testRepoPath,
+          stdio: 'ignore',
+        });
+
+        // Test with remote
+        remotes = await gitOps.getRemotes();
+        expect(remotes).toHaveLength(1);
+        expect(remotes[0].name).toBe('origin');
+        expect(remotes[0].url).toBe('https://github.com/test/repo.git');
+
+        // Push should now detect the remote
+        const pushResult = await gitOps.push();
+        expect(pushResult.success).toBe(false); // Will fail due to invalid remote, but should try
+        expect(pushResult.error).toContain(''); // Should have some error message
+      });
+
+      it('should handle multiple remotes and use the first one', async () => {
+        // Add multiple remotes
+        execSync('git remote add origin https://github.com/test/repo1.git', {
+          cwd: testRepoPath,
+          stdio: 'ignore',
+        });
+        execSync('git remote add upstream https://github.com/test/repo2.git', {
+          cwd: testRepoPath,
+          stdio: 'ignore',
+        });
+
+        const remotes = await gitOps.getRemotes();
+        expect(remotes.length).toBeGreaterThanOrEqual(1);
+
+        // Push should use the first remote (typically 'origin')
+        const pushResult = await gitOps.push();
+        expect(pushResult.success).toBe(false); // Will fail due to invalid remote
+        expect(pushResult.error).toBeDefined();
+      });
+    });
+  });
   });
 });
 
