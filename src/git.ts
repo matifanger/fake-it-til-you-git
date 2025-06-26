@@ -2,6 +2,7 @@ import { simpleGit, SimpleGit, CommitResult, StatusResult } from 'simple-git';
 import { existsSync } from 'fs';
 import { join, resolve } from 'path';
 import { cwd } from 'process';
+import { writeFileSync, readFileSync, unlinkSync, mkdirSync } from 'fs';
 
 /**
  * Interface for repository information
@@ -40,6 +41,33 @@ export interface RepoStatus {
   modified: string[];
   untracked: string[];
   deleted: string[];
+}
+
+/**
+ * Interface for backup information
+ */
+export interface BackupInfo {
+  id: string;
+  timestamp: Date;
+  branch: string;
+  lastCommitHash: string;
+  totalCommits: number;
+  backupPath: string;
+  repositoryPath: string;
+}
+
+/**
+ * Interface for integrity check result
+ */
+export interface IntegrityCheckResult {
+  isValid: boolean;
+  errors: string[];
+  warnings: string[];
+  commitCount: number;
+  branchInfo: {
+    current: string;
+    exists: boolean;
+  };
 }
 
 /**
@@ -348,6 +376,267 @@ export class GitOperations {
     } catch (error) {
       throw new Error(`Failed to switch to branch: ${error instanceof Error ? error.message : 'Unknown error'}`);
     }
+  }
+
+  /**
+   * Create a backup of the current repository state
+   * @returns Promise<BackupInfo> - Backup information
+   */
+  async createBackup(): Promise<BackupInfo> {
+    if (!await this.isGitRepository()) {
+      throw new Error('Not a Git repository - cannot create backup');
+    }
+
+    try {
+      const repositoryInfo = await this.getRepositoryInfo();
+      const backupId = `backup_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`;
+      const backupDir = join(this.repoPath, '.git', 'fake-it-til-you-git-backups');
+      const backupPath = join(backupDir, `${backupId}.json`);
+
+      // Create backup directory if it doesn't exist
+      if (!existsSync(backupDir)) {
+        mkdirSync(backupDir, { recursive: true });
+      }
+
+      // Get current HEAD hash
+      const headHash = await this.git.revparse(['HEAD']).catch(() => '');
+
+      // Create backup info
+      const backupInfo: BackupInfo = {
+        id: backupId,
+        timestamp: new Date(),
+        branch: repositoryInfo.branch,
+        lastCommitHash: headHash,
+        totalCommits: repositoryInfo.totalCommits,
+        backupPath,
+        repositoryPath: this.repoPath
+      };
+
+      // Save backup info to file
+      writeFileSync(backupPath, JSON.stringify(backupInfo, null, 2), 'utf8');
+
+      return backupInfo;
+    } catch (error) {
+      throw new Error(`Failed to create backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Restore repository from a backup
+   * @param backupInfo - Backup information to restore from
+   * @returns Promise<void>
+   */
+  async restoreFromBackup(backupInfo: BackupInfo): Promise<void> {
+    if (!await this.isGitRepository()) {
+      throw new Error('Not a Git repository - cannot restore backup');
+    }
+
+    try {
+      // Verify backup file exists
+      if (!existsSync(backupInfo.backupPath)) {
+        throw new Error(`Backup file not found: ${backupInfo.backupPath}`);
+      }
+
+      // If we have a valid commit hash, reset to it
+      if (backupInfo.lastCommitHash) {
+        try {
+          // Check if the commit exists
+          await this.git.show([backupInfo.lastCommitHash, '--name-only']);
+          
+          // Reset to the backup commit
+          await this.git.reset(['--hard', backupInfo.lastCommitHash]);
+        } catch (error) {
+          throw new Error(`Cannot restore to commit ${backupInfo.lastCommitHash}: commit not found`);
+        }
+      }
+
+      // Switch to the original branch if it exists
+      try {
+        const branches = await this.git.branch();
+        if (branches.all.includes(backupInfo.branch)) {
+          await this.switchBranch(backupInfo.branch);
+        }
+      } catch (error) {
+        // If branch switch fails, continue with current branch
+        console.warn(`Warning: Could not switch to original branch ${backupInfo.branch}`);
+      }
+
+    } catch (error) {
+      throw new Error(`Failed to restore from backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * Verify repository integrity after operations
+   * @returns Promise<IntegrityCheckResult> - Integrity check results
+   */
+  async verifyIntegrity(): Promise<IntegrityCheckResult> {
+    const result: IntegrityCheckResult = {
+      isValid: true,
+      errors: [],
+      warnings: [],
+      commitCount: 0,
+      branchInfo: {
+        current: '',
+        exists: false
+      }
+    };
+
+    try {
+      // Check if it's a valid Git repository
+      if (!await this.isGitRepository()) {
+        result.isValid = false;
+        result.errors.push('Not a valid Git repository');
+        return result;
+      }
+
+      // Check repository status
+      try {
+        const status = await this.getRepositoryStatus();
+        if (!status.isClean) {
+          result.warnings.push('Working directory is not clean');
+        }
+      } catch (error) {
+        result.errors.push(`Failed to get repository status: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+
+      // Get current branch info
+      try {
+        const currentBranch = await this.getCurrentBranch();
+        result.branchInfo.current = currentBranch;
+        result.branchInfo.exists = true;
+      } catch (error) {
+        result.errors.push(`Failed to get current branch: ${error instanceof Error ? error.message : 'Unknown error'}`);
+        result.branchInfo.exists = false;
+      }
+
+      // Get commit count
+      try {
+        result.commitCount = await this.getTotalCommitCount();
+      } catch (error) {
+        result.warnings.push(`Could not get commit count: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      }
+
+      // Verify Git objects integrity
+      try {
+        await this.git.raw(['fsck', '--no-progress']);
+      } catch (error) {
+        const errorMessage = error instanceof Error ? error.message : 'Unknown error';
+        if (errorMessage.includes('fatal')) {
+          result.errors.push(`Git fsck failed: ${errorMessage}`);
+        } else {
+          result.warnings.push(`Git fsck warning: ${errorMessage}`);
+        }
+      }
+
+      // Check if HEAD exists and is valid
+      try {
+        await this.git.revparse(['HEAD']);
+      } catch (error) {
+        if (result.commitCount > 0) {
+          result.errors.push('HEAD reference is invalid despite having commits');
+        } else {
+          result.warnings.push('No commits in repository (HEAD does not exist)');
+        }
+      }
+
+      // Set overall validity
+      result.isValid = result.errors.length === 0;
+
+    } catch (error) {
+      result.isValid = false;
+      result.errors.push(`Integrity check failed: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    return result;
+  }
+
+  /**
+   * Clean up backup files
+   * @param backupInfo - Backup to clean up, or undefined to clean all backups
+   * @returns Promise<void>
+   */
+  async cleanupBackup(backupInfo?: BackupInfo): Promise<void> {
+    try {
+      const backupDir = join(this.repoPath, '.git', 'fake-it-til-you-git-backups');
+      
+      if (!existsSync(backupDir)) {
+        return; // No backups to clean up
+      }
+
+      if (backupInfo) {
+        // Clean up specific backup
+        if (existsSync(backupInfo.backupPath)) {
+          unlinkSync(backupInfo.backupPath);
+        }
+      } else {
+        // Clean up all backups older than 24 hours
+        const fs = await import('fs/promises');
+        const files = await fs.readdir(backupDir);
+        
+        for (const file of files) {
+          if (file.endsWith('.json')) {
+            const filePath = join(backupDir, file);
+            try {
+              const backupData = JSON.parse(readFileSync(filePath, 'utf8')) as BackupInfo;
+              const backupAge = Date.now() - new Date(backupData.timestamp).getTime();
+              const twentyFourHours = 24 * 60 * 60 * 1000;
+              
+              if (backupAge > twentyFourHours) {
+                unlinkSync(filePath);
+              }
+            } catch (error) {
+              // If we can't parse the file, delete it as it's likely corrupted
+              unlinkSync(filePath);
+            }
+          }
+        }
+      }
+    } catch (error) {
+      // Cleanup errors are not critical, just log them
+      console.warn(`Warning: Failed to cleanup backup: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+  }
+
+  /**
+   * List all available backups
+   * @returns Promise<BackupInfo[]> - Array of available backups
+   */
+  async listBackups(): Promise<BackupInfo[]> {
+    const backups: BackupInfo[] = [];
+    
+    try {
+      const backupDir = join(this.repoPath, '.git', 'fake-it-til-you-git-backups');
+      
+      if (!existsSync(backupDir)) {
+        return backups;
+      }
+
+      const fs = await import('fs/promises');
+      const files = await fs.readdir(backupDir);
+      
+      for (const file of files) {
+        if (file.endsWith('.json')) {
+          const filePath = join(backupDir, file);
+          try {
+            const backupData = JSON.parse(readFileSync(filePath, 'utf8')) as BackupInfo;
+            backups.push(backupData);
+          } catch (error) {
+            // Skip corrupted backup files
+            continue;
+          }
+        }
+      }
+
+      // Sort by timestamp (newest first)
+      backups.sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime());
+      
+    } catch (error) {
+      // Return empty array if we can't list backups
+      console.warn(`Warning: Failed to list backups: ${error instanceof Error ? error.message : 'Unknown error'}`);
+    }
+
+    return backups;
   }
 }
 
