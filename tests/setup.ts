@@ -4,10 +4,10 @@
 // Mock console methods for cleaner test output
 global.console = {
   ...console,
-  // Uncomment below lines if you want to suppress console output during tests
-  // log: jest.fn(),
-  // warn: jest.fn(),
-  // error: jest.fn(),
+  // Suppress console output during tests for cleaner output
+  log: jest.fn(),
+  warn: jest.fn(),
+  error: jest.fn(),
 };
 
 // Set up any global test configuration here

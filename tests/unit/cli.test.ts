@@ -35,7 +35,8 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
     test('should display version', async () => {
       const result = await runCLI(['--version']);
       expect(result.code).toBe(0);
-      expect(result.stdout).toMatch(/1\.0\.0/);
+      // Check for semantic version pattern instead of specific version
+      expect(result.stdout).toMatch(/\d+\.\d+\.\d+/);
     });
 
     test('should display help with examples and detailed descriptions', async () => {

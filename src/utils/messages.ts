@@ -73,6 +73,32 @@ const EMOJI_MESSAGES = [
 ];
 
 /**
+ * Default commit messages embedded as fallback
+ */
+const DEFAULT_EMBEDDED_MESSAGES = [
+  'Update README',
+  'Fix bug in main functionality',
+  'Add new feature',
+  'Refactor code structure',
+  'Update dependencies',
+  'Improve performance',
+  'Fix typos',
+  'Add tests',
+  'Update documentation',
+  'Clean up code',
+  'Initial commit',
+  'Work in progress',
+  'Minor fixes',
+  'Code cleanup',
+  'Bug fixes',
+  'Feature enhancement',
+  'Update configuration',
+  'Merge branch changes',
+  'Update version',
+  'Hotfix',
+];
+
+/**
  * Load messages from a file
  */
 export function loadMessagesFromFile(filePath: string): string[] {
@@ -93,64 +119,64 @@ export function loadMessagesFromFile(filePath: string): string[] {
  * Load default messages from templates directory
  */
 export function loadDefaultMessages(): string[] {
-  // Strategy 1: Development environment or Jest test environment
-  // Templates are at ./templates/ from project root
-  const developmentPath = join(process.cwd(), 'templates', 'messages.txt');
-  if (existsSync(developmentPath)) {
-    return loadMessagesFromFile(developmentPath);
-  }
+  const searchPaths: { path: string; description: string }[] = [];
   
-  // Strategy 2: If we're running from the compiled dist/ directory (npm install)
-  // The templates should be at ../../templates/ from dist/src/utils/
-  let templatesPath: string | undefined;
-  
+  // Strategy 1: Check if we're in production mode (global install)
+  // When installed globally, the templates should be alongside the compiled dist files
   try {
-    // Only try import.meta in non-test environments
+    // For global installs, we need to find the package installation directory
+    // This works by finding where the current executable is located
     const isTestEnv = process.env.NODE_ENV === 'test' || 
                       process.env.JEST_WORKER_ID !== undefined ||
                       (typeof globalThis !== 'undefined' && 'jest' in globalThis);
     
     if (!isTestEnv) {
-      // Use dynamic access to avoid TypeScript compilation issues in Jest
-      const importMeta = (globalThis as any).importMeta || (globalThis as any).import?.meta;
-      if (importMeta?.url) {
-        const currentFilePath = fileURLToPath(importMeta.url);
-        const currentDir = dirname(currentFilePath);
-        templatesPath = join(currentDir, '..', '..', 'templates', 'messages.txt');
-        
-        if (existsSync(templatesPath)) {
-          return loadMessagesFromFile(templatesPath);
-        }
-      }
-      
-      // Try another approach for ES modules
+      // Try to use import.meta.url to find the current file location
       try {
-        // This will only work in actual ES module runtime, not in Jest
         const metaUrl = eval('import.meta.url');
         if (metaUrl) {
           const currentFilePath = fileURLToPath(metaUrl);
           const currentDir = dirname(currentFilePath);
-          templatesPath = join(currentDir, '..', '..', 'templates', 'messages.txt');
           
+          // When compiled, we're in dist/src/utils/
+          // Templates should be at the package root, so we go up 3 levels
+          const packageRootPath = join(currentDir, '..', '..', '..');
+          const templatesPath = join(packageRootPath, 'templates', 'messages.txt');
+          
+          searchPaths.push({ path: templatesPath, description: 'global install (package root)' });
           if (existsSync(templatesPath)) {
             return loadMessagesFromFile(templatesPath);
           }
+          
+          // Alternative: templates might be at dist level (2 levels up)
+          const distLevelPath = join(currentDir, '..', '..', 'templates', 'messages.txt');
+          searchPaths.push({ path: distLevelPath, description: 'global install (dist level)' });
+          if (existsSync(distLevelPath)) {
+            return loadMessagesFromFile(distLevelPath);
+          }
         }
-      } catch {
-        // Ignore errors, continue to next strategy
+      } catch (error) {
+        // Continue to next strategy
       }
     }
   } catch (error) {
     // Continue to fallback strategies
   }
   
-  // Strategy 3: Try to find templates relative to node_modules
-  // This handles the case where we're installed as a dependency
+  // Strategy 2: Development environment or local testing
+  // Templates are at ./templates/ from project root
+  const developmentPath = join(process.cwd(), 'templates', 'messages.txt');
+  searchPaths.push({ path: developmentPath, description: 'development/test mode' });
+  if (existsSync(developmentPath)) {
+    return loadMessagesFromFile(developmentPath);
+  }
+  
+  // Strategy 3: Try to find templates relative to node_modules (local install)
   try {
-    // Go up from where we might be in node_modules
     let searchPath = process.cwd();
     for (let i = 0; i < 10; i++) { // Limit search depth
       const candidatePath = join(searchPath, 'node_modules', 'fake-it-til-you-git', 'templates', 'messages.txt');
+      searchPaths.push({ path: candidatePath, description: 'local npm install' });
       if (existsSync(candidatePath)) {
         return loadMessagesFromFile(candidatePath);
       }
@@ -162,12 +188,50 @@ export function loadDefaultMessages(): string[] {
     // Continue to fallback
   }
   
+  // Strategy 4: Try searching for the package in global node_modules
+  try {
+    // Common global npm paths
+    const globalPaths = [
+      join(process.execPath, '..', '..', 'lib', 'node_modules', 'fake-it-til-you-git', 'templates', 'messages.txt'),
+      join(process.execPath, '..', '..', '..', 'lib', 'node_modules', 'fake-it-til-you-git', 'templates', 'messages.txt'),
+      join(process.env.APPDATA || '', 'npm', 'node_modules', 'fake-it-til-you-git', 'templates', 'messages.txt'),
+      join(process.env.PREFIX || '', 'lib', 'node_modules', 'fake-it-til-you-git', 'templates', 'messages.txt'),
+      join('/usr/local/lib/node_modules/fake-it-til-you-git/templates/messages.txt'),
+      join('/usr/lib/node_modules/fake-it-til-you-git/templates/messages.txt'),
+    ];
+    
+    for (const globalPath of globalPaths) {
+      searchPaths.push({ path: globalPath, description: 'global npm paths' });
+      if (existsSync(globalPath)) {
+        return loadMessagesFromFile(globalPath);
+      }
+    }
+  } catch (error) {
+    // Continue to fallback
+  }
+  
+  // Strategy 5: Use require.resolve to find the package (if available)
+  try {
+    // This might work in Node.js environments
+    const packagePath = eval('require.resolve("fake-it-til-you-git/package.json")');
+    const packageDir = dirname(packagePath);
+    const templatesPath = join(packageDir, 'templates', 'messages.txt');
+    
+    searchPaths.push({ path: templatesPath, description: 'require.resolve' });
+    if (existsSync(templatesPath)) {
+      return loadMessagesFromFile(templatesPath);
+    }
+  } catch (error) {
+    // require.resolve might not be available in all environments
+  }
+  
   // If all else fails, throw an error with helpful information
+  const searchPathsString = searchPaths
+    .map((sp, index) => `${index + 1}. ${sp.path} (${sp.description})`)
+    .join('\n');
+    
   throw new Error(
-    `Could not find templates/messages.txt. Searched in:\n` +
-    `1. ${developmentPath} (development/test)\n` +
-    `2. ${templatesPath || 'N/A'} (compiled package)\n` +
-    `3. node_modules/fake-it-til-you-git/templates/messages.txt (npm install)\n` +
+    `Could not find templates/messages.txt. Searched in:\n${searchPathsString}\n` +
     `Please ensure the package is properly installed or the templates directory exists.`
   );
 }
@@ -181,7 +245,13 @@ export function getMessagesByStyle(style: MessageStyle, customMessages?: string[
       if (customMessages && customMessages.length > 0) {
         return customMessages;
       }
-      return loadDefaultMessages();
+      try {
+        return loadDefaultMessages();
+      } catch (error) {
+        // Fallback to embedded messages if file loading fails
+        console.warn('Warning: Could not load templates/messages.txt, using embedded fallback messages');
+        return DEFAULT_EMBEDDED_MESSAGES;
+      }
     case 'lorem':
       return LOREM_MESSAGES;
     case 'emoji':

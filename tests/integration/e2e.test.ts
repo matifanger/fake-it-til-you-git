@@ -11,7 +11,12 @@ describe('End-to-End Integration Tests', () => {
 
   beforeAll(() => {
     // Build the project
-    execSync('npm run build', { cwd: projectRoot, stdio: 'inherit' });
+    try {
+      execSync('npm run build', { cwd: projectRoot, stdio: 'pipe' });
+    } catch (error) {
+      console.error('Build failed:', error);
+      throw error;
+    }
 
     // Create test repository
     if (!fs.existsSync(testRepoPath)) {
