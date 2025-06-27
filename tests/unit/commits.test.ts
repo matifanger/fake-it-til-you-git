@@ -868,3 +868,143 @@ describe('Step 5.2: Commit Creation', () => {
     });
   });
 });
+
+describe('Step 9.2: Seed Reproducibility', () => {
+  const testConfig: Config = {
+    author: {
+      name: 'Test User',
+      email: 'test@example.com',
+    },
+    dateRange: {
+      startDate: '2023-01-01',
+      endDate: '2023-01-31',
+    },
+    commits: {
+      maxPerDay: 5,
+      distribution: 'random',
+      messageStyle: 'default',
+    },
+    options: {
+      preview: false,
+      push: false,
+      verbose: false,
+      dev: true,
+      repositoryPath: '.',
+    },
+    seed: 'step-9-2-test-seed',
+  };
+
+  it('should produce identical results across multiple runs with same seed', () => {
+    // Generate multiple commit plans with the same seed
+    const results: CommitPlan[][] = [];
+    
+    for (let i = 0; i < 5; i++) {
+      const plans = generateCommitPlan(testConfig);
+      results.push(plans);
+    }
+
+    // All results should be identical
+    for (let i = 1; i < results.length; i++) {
+      expect(results[i]).toEqual(results[0]);
+    }
+  });
+
+  it('should produce different results with different seeds', () => {
+    const configs = [
+      { ...testConfig, seed: 'seed-alpha' },
+      { ...testConfig, seed: 'seed-beta' },
+      { ...testConfig, seed: 'seed-gamma' },
+    ];
+
+    const results = configs.map(config => generateCommitPlan(config));
+
+    // Results should be different between seeds
+    expect(results[0]).not.toEqual(results[1]);
+    expect(results[1]).not.toEqual(results[2]);
+    expect(results[0]).not.toEqual(results[2]);
+  });
+
+  it('should maintain reproducibility across different distribution types', () => {
+    const distributions: Array<'uniform' | 'random' | 'gaussian' | 'custom'> = [
+      'uniform', 'random', 'gaussian', 'custom'
+    ];
+
+    for (const distribution of distributions) {
+      const config = {
+        ...testConfig,
+        commits: { ...testConfig.commits, distribution },
+        seed: 'consistent-seed-for-all-distributions',
+      };
+
+      const result1 = generateCommitPlan(config);
+      const result2 = generateCommitPlan(config);
+
+      expect(result1).toEqual(result2);
+    }
+  });
+
+  it('should generate reproducible commit messages with seed', () => {
+    const plans: CommitPlan[] = [
+      { date: new Date('2023-01-01'), count: 3, messages: [] },
+      { date: new Date('2023-01-02'), count: 2, messages: [] },
+    ];
+
+    const config = { ...testConfig, seed: 'message-reproducibility-test' };
+
+    const result1 = populateCommitMessages(plans, config);
+    const result2 = populateCommitMessages(plans, config);
+
+    expect(result1).toEqual(result2);
+    expect(result1[0].messages).toHaveLength(3);
+    expect(result1[1].messages).toHaveLength(2);
+  });
+
+  it('should work correctly without seed (non-deterministic)', () => {
+    const configWithoutSeed = {
+      ...testConfig,
+      seed: undefined,
+    };
+
+    // Should not throw errors
+    expect(() => generateCommitPlan(configWithoutSeed)).not.toThrow();
+
+    // Generate multiple results - they might be different (non-deterministic)
+    const result1 = generateCommitPlan(configWithoutSeed);
+    const result2 = generateCommitPlan(configWithoutSeed);
+
+    // Should have same structure even if content might differ
+    expect(result1).toHaveLength(result2.length);
+    expect(result1.every(plan => typeof plan.count === 'number')).toBe(true);
+    expect(result2.every(plan => typeof plan.count === 'number')).toBe(true);
+  });
+
+  it('should demonstrate real-world seed usage scenarios', () => {
+    // Scenario 1: Team collaboration - same seed produces same results
+    const teamSeed = 'team-project-2024';
+    const memberAConfig = { ...testConfig, seed: teamSeed };
+    const memberBConfig = { ...testConfig, seed: teamSeed };
+
+    const memberAResult = generateCommitPlan(memberAConfig);
+    const memberBResult = generateCommitPlan(memberBConfig);
+
+    expect(memberAResult).toEqual(memberBResult);
+
+    // Scenario 2: Different projects - different seeds produce different results
+    const projectAlpha = { ...testConfig, seed: 'project-alpha-v1' };
+    const projectBeta = { ...testConfig, seed: 'project-beta-v1' };
+
+    const alphaResult = generateCommitPlan(projectAlpha);
+    const betaResult = generateCommitPlan(projectBeta);
+
+    expect(alphaResult).not.toEqual(betaResult);
+
+    // Scenario 3: Version control - adding version to seed changes results
+    const v1Config = { ...testConfig, seed: 'project-seed-v1' };
+    const v2Config = { ...testConfig, seed: 'project-seed-v2' };
+
+    const v1Result = generateCommitPlan(v1Config);
+    const v2Result = generateCommitPlan(v2Config);
+
+    expect(v1Result).not.toEqual(v2Result);
+  });
+});
