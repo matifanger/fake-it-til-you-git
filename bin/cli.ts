@@ -60,8 +60,7 @@ program
   .option(
     '-d, --days <number>',
     'Number of days to go back from today (e.g., 365 for one year)',
-    validateDays,
-    '365'
+    validateDays
   )
   .option('--start-date <date>', 'Start date in YYYY-MM-DD format (e.g., 2023-01-01)', validateDate)
   .option('--end-date <date>', 'End date in YYYY-MM-DD format (e.g., 2023-12-31)', validateDate);
@@ -71,20 +70,17 @@ program
   .option(
     '-c, --commits <number>',
     'Maximum commits per day (1-100, default: 10)',
-    validateCommits,
-    '10'
+    validateCommits
   )
   .option(
     '--distribution <type>',
     'Distribution type: uniform, random, gaussian, custom (default: random)',
-    validateDistribution,
-    'random'
+    validateDistribution
   )
   .option(
     '--message-style <style>',
     'Message style: default, lorem, emoji (default: default)',
-    validateMessageStyle,
-    'default'
+    validateMessageStyle
   );
 
 // Author Configuration
@@ -97,13 +93,12 @@ program
   .option('--preview', 'Preview commits without creating them (safe mode)', false)
   .option(
     '--config <path>',
-    'Path to JSON configuration file (default: ./test-configs/fake-git.config.json)',
-    './test-configs/fake-git.config.json'
+    'Path to JSON configuration file (default: ./test-configs/fake-git.config.json)'
   )
   .option('--push', 'Push commits to remote repository after creation', false)
   .option('--seed <string>', 'Random seed for reproducible results (any string)')
   .option('--dev', 'Development mode: use test-repo directory instead of current directory', false)
-  .option('--repo-path <path>', 'Path to the git repository (default: current directory)', '.')
+  .option('--repo-path <path>', 'Path to the git repository (default: current directory)')
   .option('-v, --verbose', 'Enable verbose output for debugging', false);
 
 // Validation functions

@@ -104,6 +104,7 @@ export async function loadConfigFromFile(configPath: string): Promise<PartialCon
     const fileContent = await readFile(resolvedPath, 'utf-8');
     const parsedConfig = JSON.parse(fileContent);
 
+    // Return the configuration as-is (should already be in correct nested format)
     return parsedConfig;
   } catch (error) {
     if (error instanceof SyntaxError) {
