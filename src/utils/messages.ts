@@ -99,6 +99,12 @@ const DEFAULT_EMBEDDED_MESSAGES = [
 ];
 
 /**
+ * Cache for loaded messages to avoid repeated file system calls and warnings
+ */
+const messageCache = new Map<string, string[]>();
+let fallbackWarningShown = false;
+
+/**
  * Load messages from a file
  */
 export function loadMessagesFromFile(filePath: string): string[] {
@@ -240,22 +246,43 @@ export function loadDefaultMessages(): string[] {
  * Get messages array based on style
  */
 export function getMessagesByStyle(style: MessageStyle, customMessages?: string[]): string[] {
+  // Create a cache key for this specific request
+  const cacheKey = `${style}-${customMessages ? 'custom' : 'default'}`;
+  
   switch (style) {
     case 'default':
       if (customMessages && customMessages.length > 0) {
         return customMessages;
       }
+      
+      // Check cache first
+      if (messageCache.has(cacheKey)) {
+        return messageCache.get(cacheKey)!;
+      }
+      
       try {
-        return loadDefaultMessages();
+        const messages = loadDefaultMessages();
+        messageCache.set(cacheKey, messages);
+        return messages;
       } catch (error) {
-        // Fallback to embedded messages if file loading fails
-        console.warn('Warning: Could not load templates/messages.txt, using embedded fallback messages');
+        // Only show the warning once
+        if (!fallbackWarningShown) {
+          console.warn('Warning: Could not load templates/messages.txt, using embedded fallback messages');
+          fallbackWarningShown = true;
+        }
+        messageCache.set(cacheKey, DEFAULT_EMBEDDED_MESSAGES);
         return DEFAULT_EMBEDDED_MESSAGES;
       }
     case 'lorem':
-      return LOREM_MESSAGES;
+      if (!messageCache.has(cacheKey)) {
+        messageCache.set(cacheKey, LOREM_MESSAGES);
+      }
+      return messageCache.get(cacheKey)!;
     case 'emoji':
-      return EMOJI_MESSAGES;
+      if (!messageCache.has(cacheKey)) {
+        messageCache.set(cacheKey, EMOJI_MESSAGES);
+      }
+      return messageCache.get(cacheKey)!;
     default:
       throw new Error(`Unknown message style: ${style}`);
   }
