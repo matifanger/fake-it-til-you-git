@@ -213,7 +213,7 @@ If you can't find what you're looking for:
 2. **Check the [Troubleshooting Guide](TROUBLESHOOTING.md)** for common issues
 3. **Look at [Usage Examples](USAGE.md)** for similar use cases
 4. **Review the [API Documentation](API.md)** for technical details
-5. **Ask for help** through [GitHub Issues](https://github.com/matifanger/fake-it-til-you-git/issues) or [Discussions](https://github.com/matifanger/fake-it-til-you-git/discussions)
+5. **Ask for help** through [GitHub Issues](https://github.com/matifanger/fake-it-til-you-git/issues)
 
 When asking for help, include:
 - What you're trying to accomplish

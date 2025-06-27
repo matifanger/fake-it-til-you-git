@@ -406,8 +406,7 @@ This project is licensed under the MIT License - see the [LICENSE](LICENSE) file
 ## 📞 Support
 
 - 🐛 [Report Issues](https://github.com/matifanger/fake-it-til-you-git/issues)
-- 💬 [Discussions](https://github.com/matifanger/fake-it-til-you-git/discussions)
-- 📖 [Documentation](https://github.com/matifanger/fake-it-til-you-git/blob/main/docs/README.md)
+- 📖 [Documentation](https://github.com/matifanger/fake-it-til-you-git/blob/master/docs/README.md)
 
 ---
 
