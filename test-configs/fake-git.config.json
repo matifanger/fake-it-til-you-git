@@ -19,5 +19,5 @@
     "dev": true,
     "repositoryPath": "."
   },
-  "seed": "my-reproducible-seed-2024"
+  "seed": "my-reproducible-seed"
 } 
