@@ -73,29 +73,29 @@ const EMOJI_MESSAGES = [
 ];
 
 /**
- * Default commit messages embedded as fallback
+ * Default commit messages (from templates/messages.txt) embedded directly
  */
 const DEFAULT_EMBEDDED_MESSAGES = [
-  'Update README',
-  'Fix bug in main functionality',
-  'Add new feature',
-  'Refactor code structure',
-  'Update dependencies',
-  'Improve performance',
-  'Fix typos',
-  'Add tests',
+  'Fix bug',
+  'Add feature',
   'Update documentation',
+  'Refactor code',
+  'Improve performance',
+  'Add tests',
+  'Fix typo',
+  'Update dependencies',
+  'Add configuration',
+  'Improve error handling',
+  'Optimize function',
+  'Add validation',
+  'Fix security issue',
+  'Update README',
+  'Add example',
   'Clean up code',
-  'Initial commit',
-  'Work in progress',
-  'Minor fixes',
-  'Code cleanup',
-  'Bug fixes',
-  'Feature enhancement',
-  'Update configuration',
-  'Merge branch changes',
+  'Fix formatting',
+  'Add logging',
   'Update version',
-  'Hotfix',
+  'Improve UI',
 ];
 
 /**
@@ -260,19 +260,10 @@ export function getMessagesByStyle(style: MessageStyle, customMessages?: string[
         return messageCache.get(cacheKey)!;
       }
       
-      try {
-        const messages = loadDefaultMessages();
-        messageCache.set(cacheKey, messages);
-        return messages;
-      } catch (error) {
-        // Only show the warning once
-        if (!fallbackWarningShown) {
-          console.warn('Warning: Could not load templates/messages.txt, using embedded fallback messages');
-          fallbackWarningShown = true;
-        }
-        messageCache.set(cacheKey, DEFAULT_EMBEDDED_MESSAGES);
-        return DEFAULT_EMBEDDED_MESSAGES;
-      }
+      // Use embedded messages directly (no file loading needed)
+      messageCache.set(cacheKey, DEFAULT_EMBEDDED_MESSAGES);
+      return DEFAULT_EMBEDDED_MESSAGES;
+      
     case 'lorem':
       if (!messageCache.has(cacheKey)) {
         messageCache.set(cacheKey, LOREM_MESSAGES);
