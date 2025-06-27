@@ -1,5 +1,6 @@
-import { readFileSync } from 'fs';
-import { join } from 'path';
+import { readFileSync, existsSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
 
 export type MessageStyle = 'default' | 'lorem' | 'emoji';
 
@@ -92,8 +93,83 @@ export function loadMessagesFromFile(filePath: string): string[] {
  * Load default messages from templates directory
  */
 export function loadDefaultMessages(): string[] {
-  const templatesPath = join(process.cwd(), 'templates', 'messages.txt');
-  return loadMessagesFromFile(templatesPath);
+  // Strategy 1: Development environment or Jest test environment
+  // Templates are at ./templates/ from project root
+  const developmentPath = join(process.cwd(), 'templates', 'messages.txt');
+  if (existsSync(developmentPath)) {
+    return loadMessagesFromFile(developmentPath);
+  }
+  
+  // Strategy 2: If we're running from the compiled dist/ directory (npm install)
+  // The templates should be at ../../templates/ from dist/src/utils/
+  let templatesPath: string | undefined;
+  
+  try {
+    // Only try import.meta in non-test environments
+    const isTestEnv = process.env.NODE_ENV === 'test' || 
+                      process.env.JEST_WORKER_ID !== undefined ||
+                      (typeof globalThis !== 'undefined' && 'jest' in globalThis);
+    
+    if (!isTestEnv) {
+      // Use dynamic access to avoid TypeScript compilation issues in Jest
+      const importMeta = (globalThis as any).importMeta || (globalThis as any).import?.meta;
+      if (importMeta?.url) {
+        const currentFilePath = fileURLToPath(importMeta.url);
+        const currentDir = dirname(currentFilePath);
+        templatesPath = join(currentDir, '..', '..', 'templates', 'messages.txt');
+        
+        if (existsSync(templatesPath)) {
+          return loadMessagesFromFile(templatesPath);
+        }
+      }
+      
+      // Try another approach for ES modules
+      try {
+        // This will only work in actual ES module runtime, not in Jest
+        const metaUrl = eval('import.meta.url');
+        if (metaUrl) {
+          const currentFilePath = fileURLToPath(metaUrl);
+          const currentDir = dirname(currentFilePath);
+          templatesPath = join(currentDir, '..', '..', 'templates', 'messages.txt');
+          
+          if (existsSync(templatesPath)) {
+            return loadMessagesFromFile(templatesPath);
+          }
+        }
+      } catch {
+        // Ignore errors, continue to next strategy
+      }
+    }
+  } catch (error) {
+    // Continue to fallback strategies
+  }
+  
+  // Strategy 3: Try to find templates relative to node_modules
+  // This handles the case where we're installed as a dependency
+  try {
+    // Go up from where we might be in node_modules
+    let searchPath = process.cwd();
+    for (let i = 0; i < 10; i++) { // Limit search depth
+      const candidatePath = join(searchPath, 'node_modules', 'fake-it-til-you-git', 'templates', 'messages.txt');
+      if (existsSync(candidatePath)) {
+        return loadMessagesFromFile(candidatePath);
+      }
+      const parentPath = dirname(searchPath);
+      if (parentPath === searchPath) break; // Reached filesystem root
+      searchPath = parentPath;
+    }
+  } catch (error) {
+    // Continue to fallback
+  }
+  
+  // If all else fails, throw an error with helpful information
+  throw new Error(
+    `Could not find templates/messages.txt. Searched in:\n` +
+    `1. ${developmentPath} (development/test)\n` +
+    `2. ${templatesPath || 'N/A'} (compiled package)\n` +
+    `3. node_modules/fake-it-til-you-git/templates/messages.txt (npm install)\n` +
+    `Please ensure the package is properly installed or the templates directory exists.`
+  );
 }
 
 /**

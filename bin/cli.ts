@@ -2,41 +2,56 @@
 
 import chalk from 'chalk';
 import { Command } from 'commander';
+import { readFileSync } from 'fs';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
 import { main } from '../src/main.js';
+
+// Get package.json version dynamically
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+// When compiled, we need to go up one more level from dist/bin/ to root
+const packageJsonPath = join(__dirname, '../../package.json');
+const packageJson = JSON.parse(readFileSync(packageJsonPath, 'utf-8'));
+const version = packageJson.version;
 
 const program = new Command();
 
 program
   .name('fake-it-til-you-git')
   .description('A modern CLI tool to generate fake Git commit history for your GitHub profile')
-  .version('1.0.0')
+  .version(version)
   .addHelpText(
     'after',
     `
+${chalk.cyan('Available Commands:')}
+  • fake-it-til-you-git (full name)
+  • fityg (shortcut)
+
 ${chalk.cyan('Examples:')}
   ${chalk.dim('# Generate 30 days of commits with default settings')}
-  fake-it-til-you-git --days 30
+  fityg --days 30
 
   ${chalk.dim('# Generate commits for a specific date range')}
-  fake-it-til-you-git --start-date 2023-01-01 --end-date 2023-12-31
+  fityg --start-date 2023-01-01 --end-date 2023-12-31
 
   ${chalk.dim('# Generate commits with custom author and distribution')}
-  fake-it-til-you-git --author-name "John Doe" --author-email "john@example.com" --distribution uniform
+  fityg --author-name "John Doe" --author-email "john@example.com" --distribution uniform
 
   ${chalk.dim('# Preview commits without creating them')}
-  fake-it-til-you-git --preview --verbose
+  fityg --preview --verbose
 
   ${chalk.dim('# Use a custom configuration file')}
-  fake-it-til-you-git --config my-config.json
+  fityg --config my-config.json
 
   ${chalk.dim('# Generate reproducible results with seed')}
-  fake-it-til-you-git --seed "my-seed-123" --commits 5
+  fityg --seed "my-seed-123" --commits 5
 
   ${chalk.dim('# Development mode (use test-repo directory)')}
-  fake-it-til-you-git --dev --commits 10 --days 30
+  fityg --dev --commits 10 --days 30
 
   ${chalk.dim('# Use a specific repository path')}
-  fake-it-til-you-git --repo-path /path/to/your/repo --commits 5
+  fityg --repo-path /path/to/your/repo --commits 5
 
 ${chalk.cyan('Configuration:')}
   You can use a JSON configuration file to set defaults. CLI arguments will override config file values.

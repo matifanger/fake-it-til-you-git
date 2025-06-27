@@ -5,8 +5,8 @@
   "description": "A modern CLI tool to generate fake Git commit history for your GitHub profile",
   "main": "dist/main.js",
   "bin": {
-    "fake-git": "dist/bin/cli.js",
-    "fake-it-til-you-git": "dist/bin/cli.js"
+    "fake-it-til-you-git": "dist/bin/cli.js",
+    "fityg": "dist/bin/cli.js"
   },
   "scripts": {
     "build": "tsc",
@@ -18,7 +18,15 @@
     "lint:fix": "biome check --apply src/ bin/ tests/",
     "format": "biome format --write src/ bin/ tests/",
     "prepare": "npm run build",
-    "start": "node dist/bin/cli.js"
+    "start": "node dist/bin/cli.js",
+    "prepublishOnly": "npm run test && npm run build",
+    "postversion": "git push && git push --tags",
+    "version:patch": "npm version patch",
+    "version:minor": "npm version minor",
+    "version:major": "npm version major",
+    "publish:patch": "npm run version:patch && npm publish",
+    "publish:minor": "npm run version:minor && npm publish",
+    "publish:major": "npm run version:major && npm publish"
   },
   "keywords": [
     "git",
@@ -40,8 +48,10 @@
     "node": ">=16.0.0"
   },
   "files": [
-    "dist/",
+    "dist/src/",
+    "dist/bin/",
     "templates/",
+    "test-configs/",
     "README.md",
     "LICENSE"
   ],

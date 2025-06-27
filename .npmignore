@@ -1,0 +1,45 @@
+# Source files (only dist/ should be included)
+src/
+bin/
+tests/
+coverage/
+
+# Compiled test files
+dist/tests/
+
+# Development files
+*.test.ts
+*.test.js
+jest.config.js
+tsconfig.json
+biome.json
+.github/
+.git/
+.gitignore
+
+# Documentation (except main README)
+docs/
+idea/
+
+# Development artifacts
+node_modules/
+.vscode/
+.idea/
+*.log
+*.tmp
+*.temp
+
+# Test repositories and fixtures
+test-repo/
+history.txt
+
+# OS files
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# Environment files
+.env
+.env.local
+.env.*.local 
