@@ -9,6 +9,7 @@ import type { Config } from './config.js';
 import { generateDateRange, parseDate } from './utils/dates.js';
 import { generateRandomMessage, type MessageStyle } from './utils/messages.js';
 import { GitOperations } from './git.js';
+import { generatePattern, mapPatternToDateRange } from './utils/patterns.js';
 
 export interface CommitPlan {
   date: Date;
@@ -30,6 +31,10 @@ export interface GaussianDistributionParams extends DistributionParams {
 export interface CustomDistributionParams extends DistributionParams {
   pattern?: number[]; // Custom pattern to repeat across the date range
   weights?: number[]; // Weights for different days of the week (0=Sunday, 6=Saturday)
+}
+
+export interface PatternDistributionParams extends DistributionParams {
+  patternConfig: import('./config.js').PatternConfig;
 }
 
 /**
@@ -262,6 +267,57 @@ export function generateCustomDistribution(
 }
 
 /**
+ * Generate commits using pattern distribution
+ * Creates visual patterns in the GitHub contribution graph
+ */
+export function generatePatternDistribution(
+  dateRange: Date[],
+  params: PatternDistributionParams
+): CommitPlan[] {
+  const rng = new SeededRandom(params.seed);
+  const plans: CommitPlan[] = [];
+
+  try {
+    // Generate the pattern matrix
+    const pattern = generatePattern(params.patternConfig);
+    
+    // Map pattern to date range with the actual start date
+    const startDate = dateRange.length > 0 ? dateRange[0] : new Date();
+    const commitIntensities = mapPatternToDateRange(pattern, dateRange.length, params.patternConfig, startDate);
+    
+    // Convert intensities to actual commit counts
+    for (let i = 0; i < dateRange.length; i++) {
+      const date = dateRange[i];
+      const intensity = commitIntensities[i] || 0;
+      
+      let commitCount = 0;
+      if (intensity > 0) {
+        // Convert intensity (1-4) to commit count based on maxPerDay
+        const baseCount = Math.ceil((intensity / 4) * params.maxPerDay);
+        
+        // Add some randomness to make it look more natural
+        const variance = Math.max(1, Math.floor(baseCount * 0.3));
+        commitCount = Math.max(0, baseCount + rng.randomInt(-variance, variance + 1));
+        commitCount = Math.min(commitCount, params.maxPerDay);
+      }
+      
+      plans.push({
+        date: new Date(date),
+        count: commitCount,
+        messages: [],
+      });
+    }
+    
+    return plans;
+    
+  } catch (error) {
+    // Fallback to random distribution if pattern generation fails
+    console.warn(`Pattern generation failed: ${error instanceof Error ? error.message : 'Unknown error'}. Falling back to random distribution.`);
+    return generateRandomDistribution(dateRange, params);
+  }
+}
+
+/**
  * Generate commit plan based on configuration
  * Main entry point for commit generation
  */
@@ -300,6 +356,15 @@ export function generateCommitPlan(config: Config): CommitPlan[] {
         ...baseParams,
         // Default pattern emphasizes weekdays
         weights: [0.2, 0.8, 1.0, 1.0, 1.0, 0.8, 0.3],
+      });
+
+    case 'pattern':
+      if (!config.commits.pattern) {
+        throw new Error('Pattern configuration is required when using pattern distribution');
+      }
+      return generatePatternDistribution(dateRange, {
+        ...baseParams,
+        patternConfig: config.commits.pattern,
       });
 
     default:

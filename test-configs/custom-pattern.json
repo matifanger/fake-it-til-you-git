@@ -1,0 +1,30 @@
+{
+  "author": {
+    "name": "ASCII Artist",
+    "email": "ascii@example.com"
+  },
+  "dateRange": {
+    "startDate": "2023-01-01",
+    "endDate": "2023-12-31"
+  },
+  "commits": {
+    "maxPerDay": 12,
+    "distribution": "pattern",
+    "messageStyle": "emoji",
+    "pattern": {
+      "type": "custom",
+      "custom": "   ███   \\n  █████  \\n ███████ \\n█████████\\n ███████ \\n  █████  \\n   ███   ",
+      "scale": 1,
+      "intensity": "medium",
+      "centerX": 0.5,
+      "centerY": 0.5
+    }
+  },
+  "options": {
+    "preview": true,
+    "verbose": false,
+    "dev": false,
+    "push": false
+  },
+  "seed": "custom-diamond-2024"
+} 

@@ -1,0 +1,30 @@
+{
+  "author": {
+    "name": "Text Artist",
+    "email": "text@example.com"
+  },
+  "dateRange": {
+    "startDate": "2023-01-01",
+    "endDate": "2023-12-31"
+  },
+  "commits": {
+    "maxPerDay": 10,
+    "distribution": "pattern",
+    "messageStyle": "default",
+    "pattern": {
+      "type": "text",
+      "text": "2024",
+      "scale": 1,
+      "intensity": "high",
+      "centerX": 0.5,
+      "centerY": 0.3
+    }
+  },
+  "options": {
+    "preview": true,
+    "verbose": false,
+    "dev": false,
+    "push": false
+  },
+  "seed": "text-pattern-2024"
+} 

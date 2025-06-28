@@ -136,6 +136,18 @@ fake-it-til-you-git [options]
    fake-it-til-you-git --days 60 --distribution custom --commits 12
    ```
 
+5. **pattern** - 🎨 **NEW!** Create visual patterns in your GitHub contribution graph
+   ```bash
+   # Heart pattern
+   fake-it-til-you-git --pattern heart --days 365
+
+   # Write text
+   fake-it-til-you-git --pattern-text "HELLO" --days 365
+
+   # Custom ASCII art
+   fake-it-til-you-git --custom-pattern "  ██  \n ████ \n  ██  " --days 365
+   ```
+
 ### 🎨 Message Styles
 
 1. **default** - Realistic commit messages (default)
@@ -146,6 +158,133 @@ fake-it-til-you-git [options]
 
 3. **emoji** - Messages with emojis
    - "🐛 Fix bug", "✨ Add feature", "📚 Update docs", etc.
+
+### 🎨 Pattern System (NEW!)
+
+Create amazing visual patterns in your GitHub contribution graph! Perfect for making your profile stand out or sending messages through your commit history.
+
+#### Preset Patterns
+
+Choose from beautiful predefined patterns:
+
+```bash
+# Heart shape - perfect for showing love for coding
+fake-it-til-you-git --pattern heart --days 365
+
+# Star pattern - show you're a star developer
+fake-it-til-you-git --pattern star --days 365
+
+# Wave pattern - smooth and elegant
+fake-it-til-you-git --pattern wave --days 365
+
+# Geometric shapes
+fake-it-til-you-git --pattern square --days 365
+fake-it-til-you-git --pattern triangle --days 365
+fake-it-til-you-git --pattern diamond --days 365
+fake-it-til-you-git --pattern cross --days 365
+```
+
+#### Text Patterns
+
+Write letters and numbers in your contribution graph:
+
+```bash
+# Write your name
+fake-it-til-you-git --pattern-text "JOHN" --days 365
+
+# Show the year
+fake-it-til-you-git --pattern-text "2025" --days 365
+
+# Numbers and letters
+fake-it-til-you-git --pattern-text "DEV123" --days 365
+```
+
+#### Custom ASCII Patterns
+
+Create your own patterns using ASCII art:
+
+```bash
+# Simple smiley face
+fake-it-til-you-git --custom-pattern " ◯◯◯ \n◯   ◯\n ◯ ◯ \n  ◯  " --days 365
+
+# Arrow pointing up
+fake-it-til-you-git --custom-pattern "  ██  \n ████ \n██████\n  ██  \n  ██  " --days 365
+
+# Custom initials
+fake-it-til-you-git --custom-pattern "██ ██\n██ ██\n█████\n██ ██\n██ ██" --days 365
+```
+
+#### Pattern Customization
+
+Fine-tune your patterns with these options:
+
+```bash
+# Scale patterns larger (1-5)
+fake-it-til-you-git --pattern heart --pattern-scale 2 --days 365
+
+# Adjust commit intensity
+fake-it-til-you-git --pattern star --pattern-intensity high --days 365
+fake-it-til-you-git --pattern wave --pattern-intensity low --days 365
+
+# Combine all options
+fake-it-til-you-git --pattern-text "2024" \
+  --pattern-scale 1 \
+  --pattern-intensity medium \
+  --days 365
+```
+
+#### Pattern Configuration File
+
+You can also define patterns in configuration files:
+
+```json
+{
+  "commits": {
+    "maxPerDay": 8,
+    "distribution": "pattern",
+    "pattern": {
+      "type": "preset",
+      "preset": "heart",
+      "scale": 2,
+      "intensity": "high",
+      "centerX": 0.5,
+      "centerY": 0.5
+    }
+  }
+}
+```
+
+Or for text patterns:
+
+```json
+{
+  "commits": {
+    "distribution": "pattern",
+    "pattern": {
+      "type": "text",
+      "text": "HELLO",
+      "scale": 1,
+      "intensity": "medium"
+    }
+  }
+}
+```
+
+Or for custom patterns:
+
+```json
+{
+  "commits": {
+    "distribution": "pattern",
+    "pattern": {
+      "type": "custom",
+      "custom": "  ██  \\n ████ \\n██████\\n ████ \\n  ██  ",
+      "scale": 1,
+      "intensity": "high"
+    }
+  }
+}
+```
 
 ## 📋 Examples
 
@@ -182,6 +321,48 @@ fake-it-til-you-git --yes --config production.json --push
 
 # Development testing
 fake-it-til-you-git --dev --days 10 --commits 3 --preview
+```
+
+### 🎨 Pattern Examples
+
+```bash
+# 💝 Create a heart pattern for your coding passion
+fake-it-til-you-git --pattern heart --days 365 --author-name "Passionate Developer" --preview
+
+# ⭐ Star pattern with high intensity for impressive activity
+fake-it-til-you-git --pattern star --pattern-intensity high --days 365 --commits 12
+
+# 📝 Write your name or brand in the contribution graph
+fake-it-til-you-git --pattern-text "GITHUB" --days 365 --pattern-scale 1
+
+# 🎯 Show the current year prominently
+fake-it-til-you-git --pattern-text "2024" --pattern-scale 2 --pattern-intensity high --days 365
+
+# 🌊 Elegant wave pattern for smooth activity visualization
+fake-it-til-you-git --pattern wave --days 365 --message-style emoji
+
+# 🔷 Diamond pattern with custom scaling
+fake-it-til-you-git --pattern diamond --pattern-scale 3 --days 365
+
+# 🎨 Custom ASCII art pattern
+fake-it-til-you-git --custom-pattern "  ██  \\n ████ \\n██████\\n ████ \\n  ██  " --days 365
+
+# 🔤 Multi-word text patterns
+fake-it-til-you-git --pattern-text "HELLO WORLD" --days 365 --pattern-intensity medium
+
+# 🎭 Use configuration file for complex patterns
+fake-it-til-you-git --config test-configs/pattern-examples.json --preview
+
+# 🚀 Combine patterns with other options for maximum impact
+fake-it-til-you-git --pattern heart \\
+  --pattern-scale 2 \\
+  --pattern-intensity high \\
+  --author-name "Code Artist" \\
+  --author-email "artist@example.com" \\
+  --message-style emoji \\
+  --seed "art-2024" \\
+  --days 365 \\
+  --preview
 ```
 
 ### Using Configuration Files
@@ -364,24 +545,6 @@ npm run format
 ```bash
 # Run all tests
 npm test
-
-# Run tests in watch mode
-npm run test:watch
-
-# Run with coverage report
-npm run test:coverage
-
-# Run specific test file
-npm test -- commits.test.ts
-```
-
-### Development Mode
-
-Use `--dev` flag for safe testing:
-
-```bash
-# Uses test-repo directory instead of current repo
-npm run dev -- --dev --days 10 --preview
 ```
 
 ## 🤝 Contributing

@@ -16,8 +16,21 @@ export interface DateRangeConfig {
 
 export interface CommitsConfig {
   maxPerDay: number;
-  distribution: 'uniform' | 'random' | 'gaussian' | 'custom';
+  distribution: 'uniform' | 'random' | 'gaussian' | 'custom' | 'pattern';
   messageStyle: 'default' | 'lorem' | 'emoji';
+  pattern?: PatternConfig;
+}
+
+export interface PatternConfig {
+  type?: 'preset' | 'custom' | 'text';
+  preset?: string; // Name of predefined pattern like 'heart', 'star', 'wave'
+  custom?: string; // Custom pattern as a string (ASCII art style)
+  text?: string; // Text to render as pattern
+  scale?: number; // Scale factor for the pattern (1-5, default: 1)
+  intensity?: 'low' | 'medium' | 'high'; // Commit intensity (default: medium)
+  repeat?: number; // Number of times to repeat the pattern horizontally (1-10, default: 1)
+  centerX?: number; // Horizontal center position (0-1, default: 0.5)
+  centerY?: number; // Vertical center position (0-1, default: 0.5)
 }
 
 export interface OptionsConfig {
@@ -62,6 +75,12 @@ export interface CliOptions {
   dev?: boolean;
   repoPath?: string;
   yes?: boolean;
+  pattern?: string; // Preset pattern name
+  customPattern?: string; // Custom pattern string
+  patternText?: string; // Text to render as pattern
+  patternScale?: string; // Scale factor
+  patternIntensity?: string; // Intensity level
+  patternRepeat?: string; // Number of pattern repetitions
 }
 
 /**
@@ -160,7 +179,9 @@ export function cliOptionsToConfig(cliOptions: CliOptions): PartialConfig {
   }
 
   // Handle commits configuration
-  if (cliOptions.commits || cliOptions.distribution || cliOptions.messageStyle) {
+  if (cliOptions.commits || cliOptions.distribution || cliOptions.messageStyle || 
+      cliOptions.pattern || cliOptions.customPattern || cliOptions.patternText || 
+      cliOptions.patternScale || cliOptions.patternIntensity || cliOptions.patternRepeat) {
     config.commits = {};
 
     if (cliOptions.commits) {
@@ -173,6 +194,40 @@ export function cliOptionsToConfig(cliOptions: CliOptions): PartialConfig {
 
     if (cliOptions.messageStyle) {
       config.commits.messageStyle = cliOptions.messageStyle as CommitsConfig['messageStyle'];
+    }
+
+    // Handle pattern configuration
+    if (cliOptions.pattern || cliOptions.customPattern || cliOptions.patternText || 
+        cliOptions.patternScale || cliOptions.patternIntensity || cliOptions.patternRepeat) {
+      config.commits.pattern = {};
+
+      if (cliOptions.pattern) {
+        config.commits.pattern.type = 'preset';
+        config.commits.pattern.preset = cliOptions.pattern;
+      } else if (cliOptions.customPattern) {
+        config.commits.pattern.type = 'custom';
+        config.commits.pattern.custom = cliOptions.customPattern;
+      } else if (cliOptions.patternText) {
+        config.commits.pattern.type = 'text';
+        config.commits.pattern.text = cliOptions.patternText;
+      }
+
+      if (cliOptions.patternScale && config.commits.pattern) {
+        config.commits.pattern.scale = Number.parseInt(cliOptions.patternScale, 10);
+      }
+
+      if (cliOptions.patternIntensity && config.commits.pattern) {
+        config.commits.pattern.intensity = cliOptions.patternIntensity as PatternConfig['intensity'];
+      }
+
+      if (cliOptions.patternRepeat && config.commits.pattern) {
+        config.commits.pattern.repeat = Number.parseInt(cliOptions.patternRepeat, 10);
+      }
+
+      // If pattern options are specified, automatically set distribution to 'pattern'
+      if (!cliOptions.distribution) {
+        config.commits.distribution = 'pattern';
+      }
     }
   }
 
@@ -279,6 +334,7 @@ export function applyDefaults(config: PartialConfig): Config {
       maxPerDay: mergedConfig.commits?.maxPerDay ?? DEFAULT_CONFIG.commits.maxPerDay,
       distribution: mergedConfig.commits?.distribution ?? DEFAULT_CONFIG.commits.distribution,
       messageStyle: mergedConfig.commits?.messageStyle ?? DEFAULT_CONFIG.commits.messageStyle,
+      ...(mergedConfig.commits?.pattern && { pattern: mergedConfig.commits.pattern }),
     },
     options: {
       preview: mergedConfig.options?.preview ?? DEFAULT_CONFIG.options.preview,

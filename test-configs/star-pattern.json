@@ -1,0 +1,30 @@
+{
+  "author": {
+    "name": "Star Developer",
+    "email": "star@example.com"
+  },
+  "dateRange": {
+    "startDate": "2023-01-01",
+    "endDate": "2023-12-31"
+  },
+  "commits": {
+    "maxPerDay": 15,
+    "distribution": "pattern",
+    "messageStyle": "emoji",
+    "pattern": {
+      "type": "preset",
+      "preset": "star",
+      "scale": 2,
+      "intensity": "high",
+      "centerX": 0.5,
+      "centerY": 0.4
+    }
+  },
+  "options": {
+    "preview": false,
+    "verbose": true,
+    "dev": false,
+    "push": false
+  },
+  "seed": "star-developer-2024"
+} 

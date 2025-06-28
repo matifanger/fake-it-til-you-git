@@ -253,7 +253,7 @@ describe('Validation Utils', () => {
       const result2 = validateCommits(commitsWithInvalidDistribution);
       expect(result2.valid).toBe(false);
       expect(result2.errors).toContain(
-        'Distribution must be one of: uniform, random, gaussian, custom'
+        'Distribution must be one of: uniform, random, gaussian, custom, pattern'
       );
     });
 

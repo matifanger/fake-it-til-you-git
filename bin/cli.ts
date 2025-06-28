@@ -65,6 +65,30 @@ ${chalk.cyan('Distribution Types:')}
   • random     - Random distribution (default)
   • gaussian   - Bell curve distribution (more commits in the middle)
   • custom     - Custom distribution pattern
+  • pattern    - Create visual patterns in your contribution graph
+
+${chalk.cyan('Pattern Examples:')}
+  ${chalk.dim('# Draw a heart pattern')}
+  fityg --pattern heart --days 365
+
+  ${chalk.dim('# Write text')}
+  fityg --pattern-text "HELLO" --days 365
+
+  ${chalk.dim('# Custom ASCII pattern')}
+  fityg --custom-pattern "  ██  \\n ████ \\n  ██  " --days 365
+
+  ${chalk.dim('# Pattern with custom intensity and scale')}
+  fityg --pattern star --pattern-scale 2 --pattern-intensity high
+
+${chalk.cyan('Available Patterns:')}
+  • heart      - Heart shape
+  • star       - Star shape  
+  • wave       - Sine wave pattern
+  • square     - Square shape
+  • triangle   - Triangle shape
+  • diamond    - Diamond shape
+  • cross      - Cross/plus shape
+  • text       - Use with --pattern-text for custom text
 
 ${chalk.cyan('Message Styles:')}
   • default    - Realistic commit messages (default)
@@ -92,13 +116,44 @@ program
   )
   .option(
     '--distribution <type>',
-    'Distribution type: uniform, random, gaussian, custom (default: random)',
+    'Distribution type: uniform, random, gaussian, custom, pattern (default: random)',
     validateDistribution
   )
   .option(
     '--message-style <style>',
     'Message style: default, lorem, emoji (default: default)',
     validateMessageStyle
+  );
+
+// Pattern Configuration (only when using pattern distribution)
+program
+  .option(
+    '--pattern <name>',
+    'Preset pattern: heart, star, wave, text, square, triangle, diamond, cross (requires --distribution pattern or auto-sets it)',
+    validatePattern
+  )
+  .option(
+    '--custom-pattern <pattern>',
+    'Custom pattern as ASCII art string (use spaces for gaps, any character for commits)',
+  )
+  .option(
+    '--pattern-text <text>',
+    'Text to render as pattern (letters/numbers)',
+  )
+  .option(
+    '--pattern-scale <number>',
+    'Pattern scale factor (1-5, default: 1)',
+    validatePatternScale
+  )
+  .option(
+    '--pattern-intensity <level>',
+    'Pattern commit intensity: low, medium, high (default: medium)',
+    validatePatternIntensity
+  )
+  .option(
+    '--pattern-repeat <number>',
+    'Repeat pattern horizontally across the timeline (1-10, default: 1)',
+    validatePatternRepeat
   );
 
 // Author Configuration
@@ -162,11 +217,47 @@ function validateDate(value: string): string {
 }
 
 function validateDistribution(value: string): string {
-  const validDistributions = ['uniform', 'random', 'gaussian', 'custom'];
+  const validDistributions = ['uniform', 'random', 'gaussian', 'custom', 'pattern'];
   if (!validDistributions.includes(value)) {
     throw new Error(
       `Invalid distribution: ${value}. Valid options: ${validDistributions.join(', ')}`
     );
+  }
+  return value;
+}
+
+function validatePattern(value: string): string {
+  const validPatterns = ['heart', 'star', 'wave', 'text', 'square', 'triangle', 'diamond', 'cross'];
+  if (!validPatterns.includes(value)) {
+    throw new Error(
+      `Invalid pattern: ${value}. Valid options: ${validPatterns.join(', ')}`
+    );
+  }
+  return value;
+}
+
+function validatePatternScale(value: string): string {
+  const num = Number.parseInt(value, 10);
+  if (Number.isNaN(num) || num < 1 || num > 5) {
+    throw new Error(`Invalid pattern scale: ${value}. Must be between 1 and 5.`);
+  }
+  return value;
+}
+
+function validatePatternIntensity(value: string): string {
+  const validIntensities = ['low', 'medium', 'high'];
+  if (!validIntensities.includes(value)) {
+    throw new Error(
+      `Invalid pattern intensity: ${value}. Valid options: ${validIntensities.join(', ')}`
+    );
+  }
+  return value;
+}
+
+function validatePatternRepeat(value: string): string {
+  const num = Number.parseInt(value, 10);
+  if (Number.isNaN(num) || num < 1 || num > 10) {
+    throw new Error(`Invalid pattern repeat: ${value}. Must be between 1 and 10.`);
   }
   return value;
 }
@@ -286,5 +377,21 @@ function validateOptionCombinations(options: Record<string, any>): void {
 
   if (options.push && options.preview) {
     console.warn(chalk.yellow('⚠️  Warning: --push option ignored in preview mode.'));
+  }
+
+  // Validate pattern-related options
+  const hasPattern = options.pattern || options.customPattern || options.patternText;
+  const isPatternDistribution = options.distribution === 'pattern';
+  
+  if (options.patternIntensity && !hasPattern && !isPatternDistribution) {
+    console.warn(chalk.yellow('⚠️  Warning: --pattern-intensity is only effective when using patterns (--pattern, --custom-pattern, or --pattern-text).'));
+  }
+  
+  if (options.patternRepeat && !hasPattern && !isPatternDistribution) {
+    console.warn(chalk.yellow('⚠️  Warning: --pattern-repeat is only effective when using patterns (--pattern, --custom-pattern, or --pattern-text).'));
+  }
+  
+  if (options.patternScale && !hasPattern && !isPatternDistribution) {
+    console.warn(chalk.yellow('⚠️  Warning: --pattern-scale is only effective when using patterns (--pattern, --custom-pattern, or --pattern-text).'));
   }
 }

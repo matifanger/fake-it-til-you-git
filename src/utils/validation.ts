@@ -17,9 +17,21 @@ export interface DateRangeConfig {
 
 export interface CommitsConfig {
   maxPerDay: number;
-  distribution: 'uniform' | 'random' | 'gaussian' | 'custom';
+  distribution: 'uniform' | 'random' | 'gaussian' | 'custom' | 'pattern';
   messageStyle: MessageStyle;
   customMessages?: string[];
+  pattern?: PatternConfig;
+}
+
+export interface PatternConfig {
+  type?: 'preset' | 'custom' | 'text';
+  preset?: string;
+  custom?: string;
+  text?: string;
+  scale?: number;
+  intensity?: 'low' | 'medium' | 'high';
+  centerX?: number;
+  centerY?: number;
 }
 
 export interface OptionsConfig {
@@ -199,11 +211,22 @@ export function validateCommits(commits: unknown): ValidationResult {
   }
 
   // Validate distribution
-  const validDistributions = ['uniform', 'random', 'gaussian', 'custom'];
+  const validDistributions = ['uniform', 'random', 'gaussian', 'custom', 'pattern'];
   if (!commitsObj.distribution || typeof commitsObj.distribution !== 'string') {
     errors.push('Distribution is required and must be a string');
   } else if (!validDistributions.includes(commitsObj.distribution)) {
     errors.push(`Distribution must be one of: ${validDistributions.join(', ')}`);
+  }
+
+  // Validate pattern configuration if distribution is pattern
+  if (commitsObj.distribution === 'pattern') {
+    if (!commitsObj.pattern || typeof commitsObj.pattern !== 'object') {
+      errors.push('Pattern configuration is required when using pattern distribution');
+    } else {
+      const patternValidation = validatePattern(commitsObj.pattern);
+      errors.push(...patternValidation.errors);
+      warnings.push(...patternValidation.warnings);
+    }
   }
 
   // Validate messageStyle
@@ -227,6 +250,99 @@ export function validateCommits(commits: unknown): ValidationResult {
   }
 
   return { valid: errors.length === 0, errors, warnings };
+}
+
+/**
+ * Validates pattern configuration
+ */
+export function validatePattern(pattern: unknown): ValidationResult {
+  const errors: string[] = [];
+  const warnings: string[] = [];
+
+  if (!pattern || typeof pattern !== 'object') {
+    errors.push('Pattern configuration must be an object');
+    return { valid: false, errors, warnings };
+  }
+
+  const patternObj = pattern as Record<string, unknown>;
+
+  // Validate type
+  const validTypes = ['preset', 'custom', 'text'];
+  if (patternObj.type && typeof patternObj.type === 'string') {
+    if (!validTypes.includes(patternObj.type)) {
+      errors.push(`Pattern type must be one of: ${validTypes.join(', ')}`);
+    }
+  }
+
+  // Validate preset
+  if (patternObj.type === 'preset') {
+    const validPresets = ['heart', 'star', 'wave', 'text', 'square', 'triangle', 'diamond', 'cross'];
+    if (!patternObj.preset || typeof patternObj.preset !== 'string') {
+      errors.push('Preset name is required when type is preset');
+    } else if (!validPresets.includes(patternObj.preset)) {
+      errors.push(`Preset must be one of: ${validPresets.join(', ')}`);
+    }
+  }
+
+  // Validate custom pattern
+  if (patternObj.type === 'custom') {
+    if (!patternObj.custom || typeof patternObj.custom !== 'string') {
+      errors.push('Custom pattern string is required when type is custom');
+    } else if (patternObj.custom.length > 10000) {
+      warnings.push('Custom pattern is very large and may impact performance');
+    }
+  }
+
+  // Validate text pattern
+  if (patternObj.type === 'text') {
+    if (!patternObj.text || typeof patternObj.text !== 'string') {
+      errors.push('Text is required when type is text');
+    } else if (patternObj.text.length > 20) {
+      warnings.push('Text pattern is very long and may not fit well in the contribution graph');
+    }
+  }
+
+  // Validate scale
+  if (patternObj.scale !== undefined) {
+    if (typeof patternObj.scale !== 'number' || !Number.isInteger(patternObj.scale)) {
+      errors.push('Scale must be an integer');
+    } else if (patternObj.scale < 1 || patternObj.scale > 5) {
+      errors.push('Scale must be between 1 and 5');
+    }
+  }
+
+  // Validate intensity
+  const validIntensities = ['low', 'medium', 'high'];
+  if (patternObj.intensity !== undefined) {
+    if (typeof patternObj.intensity !== 'string') {
+      errors.push('Intensity must be a string');
+    } else if (!validIntensities.includes(patternObj.intensity)) {
+      errors.push(`Intensity must be one of: ${validIntensities.join(', ')}`);
+    }
+  }
+
+  // Validate centerX and centerY
+  if (patternObj.centerX !== undefined) {
+    if (typeof patternObj.centerX !== 'number') {
+      errors.push('CenterX must be a number');
+    } else if (patternObj.centerX < 0 || patternObj.centerX > 1) {
+      errors.push('CenterX must be between 0 and 1');
+    }
+  }
+
+  if (patternObj.centerY !== undefined) {
+    if (typeof patternObj.centerY !== 'number') {
+      errors.push('CenterY must be a number');
+    } else if (patternObj.centerY < 0 || patternObj.centerY > 1) {
+      errors.push('CenterY must be between 0 and 1');
+    }
+  }
+
+  return {
+    valid: errors.length === 0,
+    errors,
+    warnings,
+  };
 }
 
 /**
