@@ -5,7 +5,6 @@ import {
   generateRandomMessage,
   getMessageStats,
   getMessagesByStyle,
-  loadDefaultMessages,
   loadMessagesFromFile,
   sanitizeMessage,
   sanitizeMessages,
@@ -69,16 +68,6 @@ describe('Messages Utilities', () => {
       expect(() => {
         loadMessagesFromFile('/non/existent/file.txt');
       }).toThrow('Failed to load messages from /non/existent/file.txt');
-    });
-  });
-
-  describe('loadDefaultMessages', () => {
-    it('should load default messages from templates directory', () => {
-      const messages = loadDefaultMessages();
-      expect(Array.isArray(messages)).toBe(true);
-      expect(messages.length).toBeGreaterThan(0);
-      expect(messages).toContain('Fix bug');
-      expect(messages).toContain('Add feature');
     });
   });
 
@@ -177,7 +166,7 @@ describe('Messages Utilities', () => {
       expect(message.length).toBeGreaterThan(0);
 
       // Should use default messages, not throw an error
-      const defaultMessages = loadDefaultMessages();
+      const defaultMessages = getMessagesByStyle('default');
       expect(defaultMessages).toContain(message);
     });
   });
