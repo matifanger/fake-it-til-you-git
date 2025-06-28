@@ -416,9 +416,14 @@ export async function createCommitsFromPlan(
   }
 
   try {
-    // Ensure we have a clean working directory
-    const isClean = await gitOps.isWorkingDirectoryClean();
-    if (!isClean) {
+    // Check if working directory is clean, but handle newly initialized repos
+    const status = await gitOps.getRepositoryStatus();
+    
+    // If there are modified or staged files, the directory is not clean
+    // For newly initialized repos, untracked files are expected and acceptable
+    const hasModifiedFiles = status.modified.length > 0 || status.staged.length > 0 || status.deleted.length > 0;
+    
+    if (hasModifiedFiles) {
       throw new Error(
         'Working directory is not clean. Please commit or stash your changes before proceeding.'
       );
