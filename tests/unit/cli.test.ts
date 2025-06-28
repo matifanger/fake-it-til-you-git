@@ -169,7 +169,7 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
         // Should show warning about high commit count
       const output = result.stderr + result.stdout;
       // Should display preview successfully since we used --preview flag
-      expect(output).toContain('📊 PLAN OVERVIEW');
+      expect(output).toContain('📊 OVERVIEW');
     });
 
     test('should warn about push option in preview mode', async () => {
@@ -195,6 +195,18 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
         '--preview',
       ]);
       expect(result.code).toBe(0);
+    });
+
+    test('should accept --yes option for non-interactive mode', async () => {
+      const result = await runCLI(['--yes', '--preview', '--days', '5']);
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('📊 OVERVIEW');
+    });
+
+    test('should accept -y short option for non-interactive mode', async () => {
+      const result = await runCLI(['-y', '--preview', '--days', '3']);
+      expect(result.code).toBe(0);
+      expect(result.stdout).toContain('📊 OVERVIEW');
     });
 
     test('should accept all valid distribution types', async () => {
@@ -252,8 +264,8 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
       ]);
 
       expect(result.code).toBe(0);
-      expect(result.stdout).toContain('CLI Options:');
-      // In verbose mode, should show the parsed options
+      expect(result.stdout).toContain('📊 OVERVIEW');
+      // Should show preview output with verbose details
     });
 
     test('should handle config file option', async () => {

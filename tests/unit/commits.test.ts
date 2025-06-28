@@ -278,6 +278,7 @@ describe('Commit Distribution Algorithms', () => {
         verbose: false,
         dev: true,
         repositoryPath: '.',
+        yes: false,
       },
       seed: 'test-seed',
     };
@@ -890,6 +891,7 @@ describe('Step 9.2: Seed Reproducibility', () => {
       verbose: false,
       dev: true,
       repositoryPath: '.',
+      yes: false,
     },
     seed: 'step-9-2-test-seed',
   };

@@ -107,6 +107,7 @@ fake-it-til-you-git [options]
 - `--seed <string>` - Random seed for reproducible results
 - `--dev` - Development mode: use test-repo directory
 - `--repo-path <path>` - Path to the git repository (default: current directory)
+- `-y, --yes` - Automatically answer yes to all prompts (non-interactive mode)
 - `-v, --verbose` - Enable verbose output for debugging
 
 #### Utility Options
@@ -173,6 +174,12 @@ fake-it-til-you-git --seed "project-2024" --days 60 --commits 8
 # Custom repository path
 fake-it-til-you-git --repo-path /path/to/my/project --days 30 --push
 
+# Non-interactive mode (auto-accept all prompts)
+fake-it-til-you-git --yes --days 30 --commits 5
+
+# Automation-friendly with custom config
+fake-it-til-you-git --yes --config production.json --push
+
 # Development testing
 fake-it-til-you-git --dev --days 10 --commits 3 --preview
 ```
@@ -200,7 +207,8 @@ Create a `my-config.json` file:
     "preview": false,
     "push": true,
     "verbose": false,
-    "repositoryPath": "."
+    "repositoryPath": ".",
+    "yes": false
   },
   "seed": "consistent-2024"
 }
@@ -238,7 +246,8 @@ The tool supports JSON configuration files with the following structure:
     "push": false,
     "verbose": false,
     "dev": false,
-    "repositoryPath": "."
+    "repositoryPath": ".",
+    "yes": false
   },
   "seed": "optional-seed-value"
 }
@@ -274,7 +283,8 @@ Configuration values are applied in the following order (later values override e
     "push": false,
     "verbose": false,
     "dev": false,
-    "repositoryPath": "."
+    "repositoryPath": ".",
+    "yes": false
   }
 }
 ```

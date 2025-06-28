@@ -53,6 +53,9 @@ ${chalk.cyan('Examples:')}
   ${chalk.dim('# Use a specific repository path')}
   fityg --repo-path /path/to/your/repo --commits 5
 
+  ${chalk.dim('# Auto-accept all prompts (non-interactive mode)')}
+  fityg --yes --days 30 --commits 5
+
 ${chalk.cyan('Configuration:')}
   You can use a JSON configuration file to set defaults. CLI arguments will override config file values.
   See test-configs/fake-git.config.json for an example.
@@ -114,6 +117,7 @@ program
   .option('--seed <string>', 'Random seed for reproducible results (any string)')
   .option('--dev', 'Development mode: use test-repo directory instead of current directory', false)
   .option('--repo-path <path>', 'Path to the git repository (default: current directory)')
+  .option('-y, --yes', 'Automatically answer yes to all prompts (non-interactive mode)', false)
   .option('-v, --verbose', 'Enable verbose output for debugging', false);
 
 // Validation functions

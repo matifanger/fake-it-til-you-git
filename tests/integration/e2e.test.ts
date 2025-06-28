@@ -139,7 +139,7 @@ describe('End-to-End Integration Tests', () => {
 
       expect(result).toContain('HISTORY PREVIEW');
       expect(result).toContain('commits across');
-      expect(result).toContain('PLAN OVERVIEW');
+      expect(result).toContain('📊 OVERVIEW');
 
       // Verify no commits were actually created
       const commitCount = execSync('git rev-list --count HEAD', {

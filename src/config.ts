@@ -26,6 +26,7 @@ export interface OptionsConfig {
   verbose: boolean;
   dev: boolean;
   repositoryPath: string;
+  yes: boolean;
 }
 
 export interface Config {
@@ -60,6 +61,7 @@ export interface CliOptions {
   verbose?: boolean;
   dev?: boolean;
   repoPath?: string;
+  yes?: boolean;
 }
 
 /**
@@ -85,6 +87,7 @@ const DEFAULT_CONFIG: Config = {
     verbose: false,
     dev: false,
     repositoryPath: '.',
+    yes: false,
   },
 };
 
@@ -179,7 +182,8 @@ export function cliOptionsToConfig(cliOptions: CliOptions): PartialConfig {
     cliOptions.push !== undefined ||
     cliOptions.verbose !== undefined ||
     cliOptions.dev !== undefined ||
-    cliOptions.repoPath !== undefined
+    cliOptions.repoPath !== undefined ||
+    cliOptions.yes !== undefined
   ) {
     config.options = {};
 
@@ -201,6 +205,10 @@ export function cliOptionsToConfig(cliOptions: CliOptions): PartialConfig {
 
     if (cliOptions.repoPath !== undefined) {
       config.options.repositoryPath = cliOptions.repoPath;
+    }
+
+    if (cliOptions.yes !== undefined) {
+      config.options.yes = cliOptions.yes;
     }
   }
 
@@ -278,6 +286,7 @@ export function applyDefaults(config: PartialConfig): Config {
       verbose: mergedConfig.options?.verbose ?? DEFAULT_CONFIG.options.verbose,
       dev: mergedConfig.options?.dev ?? DEFAULT_CONFIG.options.dev,
       repositoryPath: mergedConfig.options?.repositoryPath ?? DEFAULT_CONFIG.options.repositoryPath,
+      yes: mergedConfig.options?.yes ?? DEFAULT_CONFIG.options.yes,
     },
     seed: mergedConfig.seed,
   };

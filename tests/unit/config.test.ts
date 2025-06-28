@@ -39,6 +39,7 @@ describe('Config Loader', () => {
       preview: true,
       push: false,
       verbose: true,
+      yes: false,
     },
     seed: 'test-seed',
   };
@@ -216,6 +217,46 @@ describe('Config Loader', () => {
         },
       });
     });
+
+    it('should handle yes option correctly', () => {
+      const cliOptions: CliOptions = {
+        yes: true,
+        preview: false,
+      };
+
+      const result = cliOptionsToConfig(cliOptions);
+
+      expect(result).toEqual({
+        options: {
+          yes: true,
+          preview: false,
+        },
+      });
+    });
+
+    it('should include yes option in comprehensive options test', () => {
+      const cliOptions: CliOptions = {
+        preview: true,
+        push: false,
+        verbose: true,
+        dev: false,
+        yes: true,
+        repoPath: '/custom/path',
+      };
+
+      const result = cliOptionsToConfig(cliOptions);
+
+      expect(result).toEqual({
+        options: {
+          preview: true,
+          push: false,
+          verbose: true,
+          dev: false,
+          yes: true,
+          repositoryPath: '/custom/path',
+        },
+      });
+    });
   });
 
   describe('applyDefaults', () => {
@@ -259,6 +300,23 @@ describe('Config Loader', () => {
       const result = applyDefaults(partialConfig);
 
       expect(result.options.preview).toBe(true);
+      expect(result.options.push).toBe(false); // default
+      expect(result.options.verbose).toBe(false); // default
+      expect(result.options.yes).toBe(false); // default
+    });
+
+    it('should apply default yes option correctly', () => {
+      const partialConfig: PartialConfig = {
+        options: {
+          yes: true,
+          preview: false,
+        },
+      };
+
+      const result = applyDefaults(partialConfig);
+
+      expect(result.options.yes).toBe(true);
+      expect(result.options.preview).toBe(false);
       expect(result.options.push).toBe(false); // default
       expect(result.options.verbose).toBe(false); // default
     });
