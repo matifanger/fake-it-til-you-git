@@ -169,7 +169,7 @@ describe('CLI Enhanced Functionality (Step 3.2)', () => {
         // Should show warning about high commit count
       const output = result.stderr + result.stdout;
       // Should display preview successfully since we used --preview flag
-      expect(output).toContain('📊 Commit Plan Preview');
+      expect(output).toContain('📊 PLAN OVERVIEW');
     });
 
     test('should warn about push option in preview mode', async () => {

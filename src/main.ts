@@ -94,9 +94,83 @@ export async function main(options: CliOptions): Promise<void> {
       console.log(chalk.blue('Final Configuration:'), JSON.stringify(config, null, 2));
     }
 
-    spinner.succeed(chalk.green('✅ fake-it-til-you-git initialized successfully!'));
+    // Generate random seed for preview if no seed was specified in CLI
+    if (config.options.preview && !options.seed) {
+      config.seed = Math.random().toString(36).substring(2, 15);
+    }
 
-    // Initialize Git operations with proper directory handling
+    // Generate commit plan
+    const rawPlans = generateCommitPlan(config);
+    const populatedPlans = populateCommitMessages(rawPlans, config);
+    
+    // Validate the plan (after messages are populated)
+    const validation = validateCommitPlan(populatedPlans, config);
+    if (!validation.valid) {
+      throw new FakeGitError(
+        `Invalid commit plan: ${validation.errors.join(', ')}`,
+        'INVALID_PLAN',
+        false,
+        { validation }
+      );
+    }
+    
+    spinner.succeed();
+    
+    if (validation.warnings.length > 0 && options.verbose) {
+      console.log(chalk.yellow('⚠️  Warnings:'));
+      validation.warnings.forEach(warning => {
+        console.log(chalk.yellow(`   ${warning}`));
+      });
+    }
+
+    // PREVIEW MODE - No Git operations, just show the plan
+    if (config.options.preview) {
+      console.log(chalk.cyan('\n🎭 ') + chalk.bold.cyan('HISTORY PREVIEW'));
+      
+      // Main statistics
+      const stats = calculateCommitStats(populatedPlans);
+      const totalDays = populatedPlans.length;
+      const realismScore = calculateRealismScore(populatedPlans, config);
+      const realismLevel = getRealismLevel(realismScore);
+      
+      console.log(chalk.cyan('\n📊 PLAN OVERVIEW:'));
+      console.log(chalk.white(`   📅 ${config.dateRange.startDate} → ${config.dateRange.endDate} (${totalDays} days)`));
+      console.log(chalk.white(`   📈 ${stats.totalCommits} commits across ${stats.activeDays} active days (${((stats.activeDays / totalDays) * 100).toFixed(1)}% activity)`));
+      console.log(chalk.white(`   📊 ${stats.minPerDay}-${stats.maxPerDay} commits/day (avg: ${stats.averagePerDay.toFixed(1)})`));
+      console.log(chalk.white(`   👤 ${config.author.name} <${config.author.email}>`));
+      console.log(chalk.white(`   💬 ${config.commits.messageStyle} messages`));
+      console.log(chalk.white(`   🎯 ${realismLevel.label} (${realismScore % 1 === 0 ? realismScore.toString() : realismScore.toFixed(1)}/10)`));
+      if (config.seed) {
+        console.log(chalk.white(`   🌱 Seed: ${config.seed}`));
+      }
+
+      // GitHub contribution graph (main feature)
+      console.log(chalk.cyan('\n📈 GITHUB CONTRIBUTION GRAPH:'));
+      displayGitHubStyleGraph(populatedPlans);
+
+      
+
+      // Realism warnings if needed
+      if (realismScore < 6) {
+        console.log(chalk.yellow('\n⚠️  REALISM SUGGESTIONS:'));
+        if (stats.averagePerDay > 8) {
+          console.log(chalk.yellow(`   • Consider reducing commits/day (currently ${stats.averagePerDay.toFixed(1)})`));
+        }
+        if (stats.activeDays / totalDays > 0.8) {
+          console.log(chalk.yellow(`   • Add more rest days (currently ${((stats.activeDays / totalDays) * 100).toFixed(1)}% active)`));
+        }
+        if (stats.maxPerDay > 15) {
+          console.log(chalk.yellow(`   • Reduce maximum daily commits (currently ${stats.maxPerDay})`));
+        }
+      }
+      
+      console.log(chalk.yellow('💡 This is a preview only. Remove --preview to create actual commits.'));
+      
+      isOperationInProgress = false;
+      return;
+    }
+
+    // NON-PREVIEW MODE - Initialize Git operations
     spinner.start('Initializing Git operations...');
     const isDevelopmentMode = config.options.dev || process.env.NODE_ENV === 'development' || process.env.NODE_ENV === 'test';
     
@@ -132,78 +206,16 @@ export async function main(options: CliOptions): Promise<void> {
       spinner.succeed(chalk.green('✅ Git repository detected'));
     }
 
-    // Generate commit plan first (for preview/execution)
-    spinner.start('Generating commit plan...');
-    const rawPlans = generateCommitPlan(config);
-    const populatedPlans = populateCommitMessages(rawPlans, config);
-    
-    // Validate the plan (after messages are populated)
-    const validation = validateCommitPlan(populatedPlans, config);
-    if (!validation.valid) {
-      throw new FakeGitError(
-        `Invalid commit plan: ${validation.errors.join(', ')}`,
-        'INVALID_PLAN',
-        false,
-        { validation }
-      );
-    }
-    
-    spinner.succeed(chalk.green('✅ Commit plan generated and validated'));
-    
-    if (validation.warnings.length > 0) {
-      console.log(chalk.yellow('⚠️  Warnings:'));
-      validation.warnings.forEach(warning => {
-        console.log(chalk.yellow(`   ${warning}`));
-      });
-    }
-
-    // Show preview
+    // Show execution plan summary
     const totalCommits = populatedPlans.reduce((sum, plan) => sum + plan.count, 0);
     const activeDays = populatedPlans.filter(plan => plan.count > 0).length;
-    const maxCommitsPerDay = Math.max(...populatedPlans.map(plan => plan.count));
 
-    console.log(chalk.cyan('\n📊 Commit Plan Preview:'));
-    console.log(chalk.white(`   📅 Date range: ${config.dateRange.startDate} to ${config.dateRange.endDate}`));
-    console.log(chalk.white(`   📈 Total commits: ${totalCommits}`));
-    console.log(chalk.white(`   📆 Active days: ${activeDays}/${populatedPlans.length}`));
-    console.log(chalk.white(`   📊 Max commits per day: ${maxCommitsPerDay}`));
-    console.log(chalk.white(`   👤 Author: ${config.author.name} <${config.author.email}>`));
-    console.log(chalk.white(`   🎨 Message style: ${config.commits.messageStyle}`));
-    console.log(chalk.white(`   📐 Distribution: ${config.commits.distribution}`));
-    if (config.seed) {
-      console.log(chalk.white(`   🌱 Seed: ${config.seed}`));
-    }
+    console.log(chalk.cyan('\n📋 EXECUTION PLAN:'));
+    console.log(chalk.white(`   📈 ${totalCommits} commits across ${activeDays} days`));
+    console.log(chalk.white(`   📅 ${config.dateRange.startDate} → ${config.dateRange.endDate}`));
+    console.log(chalk.white(`   👤 ${config.author.name} <${config.author.email}>`));
 
-    if (config.options.preview) {
-      console.log(chalk.cyan('\n📈 GitHub Contribution Graph Preview:'));
-      displayGitHubStyleGraph(populatedPlans);
-      
-      // Show enhanced statistics
-      displayEnhancedStats(populatedPlans, config);
-      
-      console.log(chalk.cyan('\n📝 Sample Commits:'));
-      const samplePlans = populatedPlans.filter(plan => plan.count > 0).slice(0, 5);
-      samplePlans.forEach(plan => {
-        console.log(chalk.gray(`   📅 ${plan.date.toISOString().split('T')[0]} (${plan.count} commits):`));
-        plan.messages.slice(0, 3).forEach((msg, i) => {
-          console.log(chalk.gray(`     ${i + 1}. ${msg}`));
-        });
-        if (plan.messages.length > 3) {
-          console.log(chalk.gray(`     ... and ${plan.messages.length - 3} more`));
-        }
-      });
-      
-      if (populatedPlans.filter(plan => plan.count > 0).length > 5) {
-        console.log(chalk.gray(`   ... and ${populatedPlans.filter(plan => plan.count > 0).length - 5} more days with commits`));
-      }
-      
-      console.log(chalk.yellow('\n🔍 Preview mode - no changes made to repository'));
-      console.log(chalk.dim('💡 Tip: Remove --preview flag to actually create the commits'));
-      isOperationInProgress = false;
-      return;
-    }
-
-    // Interactive confirmation for non-preview operations
+    // Interactive confirmation
     const shouldProceed = await showConfirmationDialog(populatedPlans, config, gitOps);
     if (!shouldProceed) {
       console.log(chalk.yellow('\n🚫 Operation cancelled by user'));
@@ -217,7 +229,9 @@ export async function main(options: CliOptions): Promise<void> {
     if (!existsSync(historyFilePath)) {
       const header = '# Fake Git History Log\n# Format: DATE | AUTHOR | EMAIL | MESSAGE\n\n';
       writeFileSync(historyFilePath, header, 'utf-8');
-      console.log(chalk.green('📝 Created history.txt file'));
+      if (options.verbose) {
+        console.log(chalk.green('📝 Created history.txt file'));
+      }
     }
 
     // Execute commit creation with enhanced progress tracking
@@ -225,7 +239,7 @@ export async function main(options: CliOptions): Promise<void> {
     const result = await createCommitsWithHistory(populatedPlans, config, gitOps, historyFilePath);
 
     // Show results
-    console.log(chalk.cyan('\n📋 Execution Results:'));
+    console.log(chalk.cyan('\n📋 EXECUTION RESULTS:'));
     console.log(chalk.white(`   ${result.success ? '✅' : '❌'} Status: ${result.success ? 'Success' : 'Failed'}`));
     console.log(chalk.white(`   📈 Created: ${result.successfulCommits}/${result.totalCommits} commits`));
     console.log(chalk.white(`   ⏱️  Duration: ${result.duration}ms`));
@@ -246,15 +260,13 @@ export async function main(options: CliOptions): Promise<void> {
     if (result.success) {
       console.log(chalk.green('\n🎉 Fake Git history created successfully!'));
       
-      // Show some repository stats
+      // Show repository stats
       const repoInfo = await gitOps.getRepositoryInfo();
-      console.log(chalk.cyan('\n📊 Repository Statistics:'));
-      console.log(chalk.white(`   📁 Path: ${repoInfo.path}`));
-      console.log(chalk.white(`   🌿 Branch: ${repoInfo.branch}`));
-      console.log(chalk.white(`   📈 Total commits: ${repoInfo.totalCommits}`));
+      console.log(chalk.cyan('\n📊 REPOSITORY STATUS:'));
+      console.log(chalk.white(`   📁 ${repoInfo.path}`));
+      console.log(chalk.white(`   🌿 ${repoInfo.branch} (${repoInfo.totalCommits} total commits)`));
       if (repoInfo.lastCommit) {
-        console.log(chalk.white(`   📝 Last commit: ${repoInfo.lastCommit.message}`));
-        console.log(chalk.white(`   📅 Last commit date: ${repoInfo.lastCommit.date.toISOString().split('T')[0]}`));
+        console.log(chalk.white(`   📝 Latest: "${repoInfo.lastCommit.message}"`));
       }
       
       // Enhanced push functionality
@@ -452,11 +464,7 @@ function displayGitHubStyleGraph(plans: import('./commits.js').CommitPlan[]): vo
   // Build the visualization
   const result: string[] = [];
 
-  // Add a title
-  result.push(
-    chalk.bold.green("This is what you will see on your GitHub profile:")
-  );
-  result.push("");
+
 
   // Create month labels row
   let monthRow = "     "; // Space for day labels
@@ -537,25 +545,6 @@ function displayGitHubStyleGraph(plans: import('./commits.js').CommitPlan[]): vo
   );
   result.push("");
 
-  // Add statistics
-  result.push("Statistics");
-  result.push(`• Total commits: ${commitDateList.length}`);
-  result.push(
-    `• Date range: ${formatDateKey(startDate)} to ${formatDateKey(endDate)}`
-  );
-  result.push(`• Distribution: ${process.env.DISTRIBUTION || "random"}`);
-  result.push(`• Max commits in a day: ${maxCommitsInDay}`);
-
-  result.push("");
-  result.push(
-    chalk.italic("Note: This is a preview only. No commits were created.")
-  );
-  result.push(
-    chalk.italic(
-      "To generate actual commits, run the command without the --preview flag."
-    )
-  );
-
   // Print all the results
   console.log(result.join('\n'));
 }
@@ -587,82 +576,7 @@ function addDays(date: Date, days: number): Date {
   return result;
 }
 
-/**
- * Display enhanced commit statistics and insights
- */
-function displayEnhancedStats(plans: import('./commits.js').CommitPlan[], config: import('./config.js').Config): void {
-  const stats = calculateCommitStats(plans);
-  const totalDays = plans.length;
-  const totalCommits = stats.totalCommits;
-  const activeDays = stats.activeDays;
-  
-  console.log(chalk.cyan('\n📊 Detailed Statistics:'));
-  
-  // Basic stats
-  console.log(chalk.white(`   📈 Total commits: ${totalCommits}`));
-  console.log(chalk.white(`   📅 Total days in range: ${totalDays}`));
-  console.log(chalk.white(`   🎯 Active days: ${activeDays} (${((activeDays / totalDays) * 100).toFixed(1)}%)`));
-  console.log(chalk.white(`   📊 Max commits/day: ${stats.maxPerDay}`));
-  console.log(chalk.white(`   📊 Min commits/day: ${stats.minPerDay} (on active days)`));
-  console.log(chalk.white(`   📊 Average commits/active day: ${stats.averagePerDay.toFixed(1)}`));
-  
-  // Pattern analysis
-  const weekdays = [0, 0, 0, 0, 0, 0, 0]; // Sunday to Saturday
-  const months = new Array(12).fill(0);
-  
-  plans.forEach(plan => {
-    if (plan.count > 0) {
-      weekdays[plan.date.getDay()] += plan.count;
-      months[plan.date.getMonth()] += plan.count;
-    }
-  });
-  
-  const mostActiveDay = weekdays.indexOf(Math.max(...weekdays));
-  const dayNames = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
-  const mostActiveMonth = months.indexOf(Math.max(...months));
-  const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  
-  console.log(chalk.cyan('\n🔍 Pattern Analysis:'));
-  console.log(chalk.white(`   📈 Most active day: ${dayNames[mostActiveDay]} (${weekdays[mostActiveDay]} commits)`));
-  console.log(chalk.white(`   📈 Most active month: ${monthNames[mostActiveMonth]} (${months[mostActiveMonth]} commits)`));
-  
-  // Intensity distribution
-  const intensityLevels = { low: 0, medium: 0, high: 0, veryHigh: 0 };
-  plans.forEach(plan => {
-    if (plan.count === 0) return;
-    if (plan.count <= 2) intensityLevels.low++;
-    else if (plan.count <= 5) intensityLevels.medium++;
-    else if (plan.count <= 10) intensityLevels.high++;
-    else intensityLevels.veryHigh++;
-  });
-  
-  console.log(chalk.cyan('\n💪 Intensity Distribution:'));
-  console.log(chalk.green(`   🟢 Light days (1-2 commits): ${intensityLevels.low}`));
-  console.log(chalk.yellow(`   🟡 Medium days (3-5 commits): ${intensityLevels.medium}`));
-  console.log(chalk.magenta(`   🟠 Heavy days (6-10 commits): ${intensityLevels.high}`));
-  console.log(chalk.red(`   🔴 Very heavy days (10+ commits): ${intensityLevels.veryHigh}`));
-  
-  // Realism assessment
-  console.log(chalk.cyan('\n🎭 Realism Assessment:'));
-  
-  const realismScore = calculateRealismScore(plans, config);
-  const realismLevel = getRealismLevel(realismScore);
-  console.log(chalk.white(`   🎯 Realism Score: ${realismScore.toFixed(1)}/10 (${realismLevel.label})`));
-  console.log(chalk.white(`   ${realismLevel.icon} ${realismLevel.description}`));
-  
-  if (realismScore < 6) {
-    console.log(chalk.yellow('\n⚠️  Suggestions for more realistic patterns:'));
-    if (stats.averagePerDay > 8) {
-      console.log(chalk.yellow(`   • Consider reducing average commits per day (currently ${stats.averagePerDay.toFixed(1)})`));
-    }
-    if (activeDays / totalDays > 0.8) {
-      console.log(chalk.yellow(`   • Add more rest days (currently active ${((activeDays / totalDays) * 100).toFixed(1)}% of time)`));
-    }
-    if (intensityLevels.veryHigh > activeDays * 0.1) {
-      console.log(chalk.yellow(`   • Reduce very heavy days (currently ${intensityLevels.veryHigh})`));
-    }
-  }
-}
+
 
 /**
  * Calculate a realism score based on commit patterns
@@ -734,70 +648,30 @@ async function showConfirmationDialog(
   const stats = calculateCommitStats(plans);
   const repoInfo = await gitOps.getRepositoryInfo();
   
-  console.log(chalk.cyan('\n⚠️  Operation Confirmation Required'));
-  console.log(chalk.white('You are about to create fake Git history with the following impact:'));
-  console.log(chalk.white(`   📈 ${stats.totalCommits} new commits will be created`));
-  console.log(chalk.white(`   📅 Affecting ${stats.activeDays} days in your repository`));
-  console.log(chalk.white(`   📁 Repository: ${repoInfo.path}`));
-  console.log(chalk.white(`   🌿 Branch: ${repoInfo.branch}`));
-  
+  // Build warning flags
+  const warnings = [];
   if (repoInfo.totalCommits > 0) {
-    console.log(chalk.yellow(`   ⚠️  This repository already has ${repoInfo.totalCommits} commits`));
-    console.log(chalk.yellow(`   ⚠️  New commits will be mixed with existing history`));
+    warnings.push(`⚠️  Existing repository with ${repoInfo.totalCommits} commits`);
+  }
+  if (config.options.push && repoInfo.remote) {
+    warnings.push(`🚨 Will push to ${repoInfo.remote}`);
+  }
+  if (stats.totalCommits > 1000) {
+    warnings.push(`⚠️  Creating ${stats.totalCommits} commits (high volume)`);
   }
   
-  if (repoInfo.remote) {
-    console.log(chalk.yellow(`   🌐 Remote repository detected: ${repoInfo.remote}`));
-    if (config.options.push) {
-      console.log(chalk.red(`   🚨 Commits will be PUSHED to remote after creation!`));
-    } else {
-      console.log(chalk.yellow(`   ℹ️  Commits will be created locally only (use --push to upload)`));
-    }
-  }
+  // Simple confirmation message
+  const warningText = warnings.length > 0 ? ` (${warnings.join(', ')})` : '';
+  const message = `Create ${stats.totalCommits} commits in ${repoInfo.path}${warningText}?`;
   
   const answer = await inquirer.prompt([
     {
       type: 'confirm',
       name: 'proceed',
-      message: 'Do you want to proceed with creating these commits?',
+      message,
       default: false,
     },
   ]);
-  
-  if (answer.proceed && (stats.totalCommits > 1000 || repoInfo.totalCommits > 0)) {
-    // Double confirmation for high-impact operations
-    console.log(chalk.yellow('\n🔄 Double Confirmation Required'));
-    
-    const questions = [];
-    
-    if (stats.totalCommits > 1000) {
-      questions.push('Creating more than 1000 commits');
-    }
-    
-    if (repoInfo.totalCommits > 0) {
-      questions.push('Repository already has commits');
-    }
-    
-    if (config.options.push && repoInfo.remote) {
-      questions.push('Commits will be pushed to remote');
-    }
-    
-    console.log(chalk.yellow('This is a high-impact operation because:'));
-    questions.forEach(question => {
-      console.log(chalk.yellow(`   • ${question}`));
-    });
-    
-    const doubleConfirm = await inquirer.prompt([
-      {
-        type: 'confirm',
-        name: 'doubleConfirm',
-        message: 'Are you absolutely sure you want to proceed?',
-        default: false,
-      },
-    ]);
-    
-    return doubleConfirm.doubleConfirm;
-  }
   
   return answer.proceed;
 }

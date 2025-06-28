@@ -106,8 +106,8 @@ describe('End-to-End Integration Tests', () => {
         stdio: 'pipe'
       });
 
-      expect(result).toContain('Commit Plan Preview');
-      expect(result).toContain('Total commits:');
+      expect(result).toContain('HISTORY PREVIEW');
+      expect(result).toContain('commits across');
     });
 
     it('should handle missing git repository', () => {
@@ -122,7 +122,7 @@ describe('End-to-End Integration Tests', () => {
         });
         
         // The CLI should run but show a message about not being in a git repository
-        expect(result).toContain('Total commits:');
+        expect(result).toContain('commits across');
       } finally {
         safeRemoveDir(nonGitPath);
       }
@@ -137,9 +137,9 @@ describe('End-to-End Integration Tests', () => {
         stdio: 'pipe'
       });
 
-      expect(result).toContain('Commit Plan Preview');
-      expect(result).toContain('Total commits:');
-      expect(result).toContain('Date range:');
+      expect(result).toContain('HISTORY PREVIEW');
+      expect(result).toContain('commits across');
+      expect(result).toContain('PLAN OVERVIEW');
 
       // Verify no commits were actually created
       const commitCount = execSync('git rev-list --count HEAD', {
@@ -194,8 +194,8 @@ describe('End-to-End Integration Tests', () => {
           stdio: 'pipe'
         });
 
-        expect(result).toContain('Total commits:');
-        expect(result).toContain('Distribution: uniform');
+        expect(result).toContain('commits across');
+        expect(result).toContain('HISTORY PREVIEW');
       } finally {
         fs.unlinkSync(tempConfigPath);
       }
@@ -231,8 +231,8 @@ describe('End-to-End Integration Tests', () => {
           stdio: 'pipe'
         });
 
-        expect(result).toContain('Total commits:');
-        expect(result).toContain('Distribution: random');
+        expect(result).toContain('commits across');
+        expect(result).toContain('HISTORY PREVIEW');
       } finally {
         fs.unlinkSync(tempConfigPath);
       }
@@ -268,8 +268,8 @@ describe('End-to-End Integration Tests', () => {
           stdio: 'pipe'
         });
 
-        expect(result).toContain('Total commits:');
-        expect(result).toContain('Distribution: gaussian');
+        expect(result).toContain('commits across');
+        expect(result).toContain('HISTORY PREVIEW');
       } finally {
         fs.unlinkSync(tempConfigPath);
       }
@@ -307,7 +307,7 @@ describe('End-to-End Integration Tests', () => {
           stdio: 'pipe'
         });
 
-        expect(result).toContain('Message style: default');
+        expect(result).toContain('HISTORY PREVIEW');
       } finally {
         fs.unlinkSync(tempConfigPath);
       }
@@ -343,7 +343,7 @@ describe('End-to-End Integration Tests', () => {
           stdio: 'pipe'
         });
 
-        expect(result).toContain('Message style: emoji');
+        expect(result).toContain('HISTORY PREVIEW');
       } finally {
         fs.unlinkSync(tempConfigPath);
       }

@@ -98,7 +98,7 @@ describe('NPM Installation Test', () => {
     expect(stderr).not.toContain('❌');
     
     // Should contain preview content
-    expect(stdout).toContain('Commit Plan Preview');
+    expect(stdout).toContain('HISTORY PREVIEW');
   });
 
   test('should show reproducible results with seed', async () => {
@@ -124,6 +124,6 @@ describe('NPM Installation Test', () => {
     
     // Test with custom config
     const { stdout } = await execAsync(`node "${distBinPath}" --preview --dev --config "${configPath}"`);
-    expect(stdout).toContain('Commit Plan Preview');
+    expect(stdout).toContain('HISTORY PREVIEW');
   });
 }); 
