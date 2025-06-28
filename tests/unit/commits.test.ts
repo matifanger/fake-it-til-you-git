@@ -633,6 +633,15 @@ describe('Step 5.2: Commit Creation', () => {
     beforeEach(() => {
       mockGitOps = {
         isWorkingDirectoryClean: jest.fn().mockResolvedValue(true),
+        getRepositoryStatus: jest.fn().mockResolvedValue({
+          isClean: true,
+          staged: [],
+          modified: [],
+          untracked: [],
+          deleted: [],
+          ahead: 0,
+          behind: 0,
+        }),
         createBackup: jest.fn().mockResolvedValue({
           id: 'backup-123',
           timestamp: new Date(),
@@ -679,7 +688,15 @@ describe('Step 5.2: Commit Creation', () => {
     });
 
     it('should fail if working directory is not clean', async () => {
-      mockGitOps.isWorkingDirectoryClean.mockResolvedValue(false);
+      mockGitOps.getRepositoryStatus.mockResolvedValue({
+        isClean: false,
+        staged: ['file1.txt'],
+        modified: ['file2.txt'],
+        untracked: [],
+        deleted: [],
+        ahead: 0,
+        behind: 0,
+      });
 
       const plans: CommitPlan[] = [
         { date: new Date('2023-01-01'), count: 1, messages: ['Test commit'] },
@@ -797,6 +814,15 @@ describe('Step 5.2: Commit Creation', () => {
     beforeEach(() => {
       mockGitOps = {
         isWorkingDirectoryClean: jest.fn().mockResolvedValue(true),
+        getRepositoryStatus: jest.fn().mockResolvedValue({
+          isClean: true,
+          staged: [],
+          modified: [],
+          untracked: [],
+          deleted: [],
+          ahead: 0,
+          behind: 0,
+        }),
         createBackup: jest.fn().mockResolvedValue({
           id: 'backup-123',
           timestamp: new Date(),
@@ -842,7 +868,7 @@ describe('Step 5.2: Commit Creation', () => {
     });
 
     it('should handle errors gracefully', async () => {
-      mockGitOps.isWorkingDirectoryClean.mockRejectedValue(new Error('Git error'));
+      mockGitOps.getRepositoryStatus.mockRejectedValue(new Error('Git error'));
 
       const config = getDefaultConfig();
       const result = await generateAndCreateCommits(config, mockGitOps);

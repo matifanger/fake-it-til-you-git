@@ -1,16 +1,34 @@
 import { spawn } from 'child_process';
 import { resolve } from 'path';
+import { rmSync, existsSync } from 'fs';
 
 const CLI_PATH = resolve(__dirname, '../../dist/bin/cli.js');
+
+// Clean up function for test isolation
+function cleanupTestRepo() {
+  const testRepoPath = resolve(process.cwd(), 'test-repo');
+  if (existsSync(testRepoPath)) {
+    try {
+      rmSync(testRepoPath, { recursive: true, force: true });
+    } catch (error) {
+      // Ignore cleanup errors
+    }
+  }
+}
 
 /**
  * Utility function to run CLI command and capture output
  */
 function runCLI(args: string[]): Promise<{ code: number; stdout: string; stderr: string }> {
   return new Promise((resolve) => {
+    // Ensure clean state before each CLI run
+    cleanupTestRepo();
+    
     const child = spawn('node', [CLI_PATH, ...args], {
       stdio: 'pipe',
       env: { ...process.env, NODE_ENV: 'test' },
+      // Use current working directory consistently
+      cwd: process.cwd(),
     });
 
     let stdout = '';
@@ -25,10 +43,21 @@ function runCLI(args: string[]): Promise<{ code: number; stdout: string; stderr:
     });
 
     child.on('close', (code) => {
+      // Clean up after each CLI run
+      setTimeout(() => cleanupTestRepo(), 100);
       resolve({ code: code || 0, stdout, stderr });
     });
   });
 }
+
+// Ensure cleanup between test suites
+beforeAll(() => {
+  cleanupTestRepo();
+});
+
+afterAll(() => {
+  cleanupTestRepo();
+});
 
 describe('CLI Enhanced Functionality (Step 3.2)', () => {
   describe('Help and Version', () => {

@@ -2,7 +2,7 @@
   "name": "fake-it-til-you-git",
   "version": "1.2.0",
   "type": "module",
-  "description": "A modern CLI tool to generate fake Git commit history for your GitHub profile",
+  "description": "A modern CLI tool to generate fake Git commit history for your GitHub/GitLab profile",
   "main": "dist/main.js",
   "bin": {
     "fake-it-til-you-git": "dist/bin/cli.js",
