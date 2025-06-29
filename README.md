@@ -1,6 +1,9 @@
 # 🚀 fake-it-til-you-git
 
-A modern, TypeScript-powered CLI tool to generate realistic fake Git commit history for your GitHub profile. Perfect for testing, demonstrations, or filling gaps in your contribution graph.
+A modern, TypeScript-powered CLI tool to generate realistic fake Git commit history for your GitHub/GitLab profile. Perfect for testing, demonstrations, or filling gaps in your contribution graph.
+
+![.github/images/main.gif](.github/images/main.gif)
+
 
 [![MIT License](https://img.shields.io/badge/License-MIT-green.svg)](https://choosealicense.com/licenses/mit/)
 [![Node.js Version](https://img.shields.io/badge/node-%3E%3D16.0.0-brightgreen)](https://nodejs.org/)
